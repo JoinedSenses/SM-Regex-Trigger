@@ -2,8 +2,7 @@
 *
 *	This include contains a ton of useful stocks and functions you can use.
 *	I made this include considering I feel like most of this stuff should be built into Sourcemod anyways.
-*	Author: Keith Warren (Drixevel)
-*	http://www.drixevel.com/
+*	Author: Keith Warren (Sky Guardian)
 *
 **/
 
