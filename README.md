@@ -1,5 +1,5 @@
 # TF2-Regex-Filter
-A plugin created by Keith Warren [Drixevel], modified by myself. 
+A plugin created by Keith Warren [Sky Guardian], modified by myself. 
 Serves as a filter for names, chat, and commands. 
 
 See this plugin for reference, since they are similar: https://forums.alliedmods.net/showthread.php?t=71867
