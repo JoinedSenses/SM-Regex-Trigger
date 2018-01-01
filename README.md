@@ -6,11 +6,3 @@ See this plugin for reference, since they are similar: https://forums.alliedmods
 
 The uploaded source and plugin here would need to be edited for your own use:
   Specifically line 465 - I push the connect message to my IRC.
-  
-## Requirements
-The regex filter should also run with the hidenamechange plugin, since it creates its own connect messages.
-
-Tidy chat is needed to remove connect messages.
-``` 
-sm_tidychat_connect 1
-```
