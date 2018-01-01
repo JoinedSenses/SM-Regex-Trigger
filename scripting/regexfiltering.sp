@@ -39,7 +39,7 @@ public Plugin myinfo =
 	author = "Keith Warren (Sky Guardian), JoinedSenses", 
 	description = PLUGIN_DESCRIPTION, 
 	version = PLUGIN_VERSION, 
-	url = "http://www.drixevel.com/"
+	url = "https://github.com/SkyGuardian"
 };
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
