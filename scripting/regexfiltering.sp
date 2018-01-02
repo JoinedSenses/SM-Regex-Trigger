@@ -25,7 +25,6 @@ ConVar convar_CheckNames;
 bool g_bLate;
 
 char old_name[MAXPLAYERS+1][255];
-UserMsg g_umSayText2;
 
 ArrayList g_hArray_Regex_Chat;
 ArrayList g_hArray_Regex_Commands;
@@ -61,9 +60,6 @@ public void OnPluginStart()
 	g_hArray_Regex_Commands = CreateArray(2);
 	g_hArray_Regex_Names = CreateArray(2);
 	
-	g_umSayText2 = GetUserMessageId("SayText2");
-	HookUserMessage(g_umSayText2, UserMessageHook, true);
-	HookEvent("player_connect_client", Event_PlayerConnect, EventHookMode_Pre);	
 	HookEvent("player_changename", Event_OnChangeName, EventHookMode_Pre);
 	//RegAdminCmd("sm_testname", Command_TestName, ADMFLAG_ROOT);
 }
@@ -77,28 +73,7 @@ public void OnPluginStart()
 //	PrintToDrixevel("action value: %i", value);
 //	return Plugin_Handled;
 //}
-public Action UserMessageHook(UserMsg msg_id, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
-{
-    char _sMessage[96];
-    BfReadString(bf, _sMessage, sizeof(_sMessage));
-    BfReadString(bf, _sMessage, sizeof(_sMessage));
-    if (StrContains(_sMessage, "Name_Change") != -1)
-    {
-        for (int i = 1; i <= MaxClients; i++)
-        {
-            if (IsClientInGame(i))
-            {
-                return Plugin_Handled;
-            }
-        }
-    }
-    return Plugin_Continue;
-}
-public Action Event_PlayerConnect(Event event, const char[] name, bool dontBroadcast)
-{
-	event.BroadcastDisabled = true;
-	return Plugin_Continue;
-}
+
 public void OnConfigsExecuted()
 {
 	if (!GetConVarBool(convar_Status))
