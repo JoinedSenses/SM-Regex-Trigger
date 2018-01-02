@@ -35,10 +35,10 @@ StringMap g_hTrie_Limits[MAXPLAYERS+1];
 public Plugin myinfo = 
 {
 	name = "Regex Filters", 
-	author = "Keith Warren (Drixevel), JoinedSenses", 
+	author = "Keith Warren (Sky Guardian), JoinedSenses", 
 	description = PLUGIN_DESCRIPTION, 
 	version = PLUGIN_VERSION, 
-	url = "http://www.drixevel.com/"
+	url = "https://github.com/SkyGuardian"
 };
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
