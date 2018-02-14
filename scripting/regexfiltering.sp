@@ -202,7 +202,7 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 			
 			if (GetTrieString(currentsection, "warn", sValue, sizeof(sValue)))
 			{
-				ReplyToCommand(client, "[Filter] %s", sValue);
+				PrintToChat(client, "[Filter] %s", sValue);
 			}
 			
 			if (GetTrieString(currentsection, "action", sValue, sizeof(sValue)))
@@ -248,6 +248,9 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 			
 			if (GetTrieValue(currentsection, "block", value) && view_as<bool>(value))
 			{
+				char sName[32];
+				GetClientName(client, sName, sizeof(sName));
+				ServerCommand("irc_send PRIVMSG #ecj-test :%s: %s", sName, sMessage);
 				return Plugin_Handled;
 			}
 			
@@ -352,7 +355,7 @@ Action CheckClientName(int client, Event event, char[] new_name)
 			
 			if (GetTrieString(currentsection, "warn", sValue, sizeof(sValue)))
 			{
-				ReplyToCommand(client, "[Filter] %s", sValue);
+				PrintToChat(client, "[Filter] %s", sValue);
 			}
 			
 			if (GetTrieString(currentsection, "action", sValue, sizeof(sValue)))
