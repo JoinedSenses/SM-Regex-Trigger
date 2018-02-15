@@ -202,7 +202,7 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 			
 			if (GetTrieString(currentsection, "warn", sValue, sizeof(sValue)))
 			{
-				PrintToChat(client, "[Filter] %s", sValue);
+				CPrintToChat(client, "[{red}Filter{default}] {lightgreen}%s{default}", sValue);
 			}
 			
 			if (GetTrieString(currentsection, "action", sValue, sizeof(sValue)))
@@ -355,7 +355,7 @@ Action CheckClientName(int client, Event event, char[] new_name)
 			
 			if (GetTrieString(currentsection, "warn", sValue, sizeof(sValue)))
 			{
-				PrintToChat(client, "[Filter] %s", sValue);
+				CPrintToChat(client, "[{red}Filter{default}] {lightgreen}%s{default}", sValue);
 			}
 			
 			if (GetTrieString(currentsection, "action", sValue, sizeof(sValue)))
