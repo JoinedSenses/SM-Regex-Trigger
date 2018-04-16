@@ -25,6 +25,7 @@ ConVar convar_CheckNames;
 bool g_bLate;
 
 char old_name[MAXPLAYERS+1][255];
+char original_name[MAXPLAYERS+1][255];
 
 ArrayList g_hArray_Regex_Chat;
 ArrayList g_hArray_Regex_Commands;
@@ -137,12 +138,12 @@ public void OnClientAuthorized(int client, const char[] auth)
 	{
 		return;
 	}
-	
 	g_hTrie_Limits[client] = CreateTrie();
 	
 	if (GetConVarBool(convar_CheckNames))
 	{
 		char sName[MAX_NAME_LENGTH];
+		GetClientName(client, original_name[client], 32);
 		GetClientName(client, sName, sizeof(sName));
 		
 		CheckClientName(client, null, sName);
@@ -202,7 +203,7 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 			
 			if (GetTrieString(currentsection, "warn", sValue, sizeof(sValue)))
 			{
-				ReplyToCommand(client, "[Filter] %s", sValue);
+				CPrintToChat(client, "[{red}Filter{default}] {lightgreen}%s{default}", sValue);
 			}
 			
 			if (GetTrieString(currentsection, "action", sValue, sizeof(sValue)))
@@ -248,6 +249,9 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 			
 			if (GetTrieValue(currentsection, "block", value) && view_as<bool>(value))
 			{
+				char sName[32];
+				GetClientName(client, sName, sizeof(sName));
+				ServerCommand("irc_send PRIVMSG #ecj-test :%s: %s", sName, sMessage);
 				return Plugin_Handled;
 			}
 			
@@ -315,8 +319,10 @@ public Action Event_OnChangeName(Event event, const char[] name, bool dontBroadc
 	{
 		return Plugin_Continue;
 	}
+
 	char sNewName[MAX_NAME_LENGTH];
 	GetEventString(event, "newname", sNewName, sizeof(sNewName));
+	strcopy(original_name[client], MAX_NAME_LENGTH, sNewName);
 	CheckClientName(client, event, sNewName);
 	
 	return Plugin_Handled;
@@ -352,7 +358,7 @@ Action CheckClientName(int client, Event event, char[] new_name)
 			
 			if (GetTrieString(currentsection, "warn", sValue, sizeof(sValue)))
 			{
-				ReplyToCommand(client, "[Filter] %s", sValue);
+				CPrintToChat(client, "[{red}Filter{default}] {lightgreen}%s{default}", sValue);
 			}
 			
 			if (GetTrieString(currentsection, "action", sValue, sizeof(sValue)))
@@ -411,7 +417,7 @@ Action CheckClientName(int client, Event event, char[] new_name)
 				ResetPack(pack);
 				Regex regex2 = ReadPackCell(pack);
 				ReadPackString(pack, sValue, sizeof(sValue));
-				
+
 				if (regex2 == null)
 				{
 					regex2 = regex;
@@ -426,7 +432,7 @@ Action CheckClientName(int client, Event event, char[] new_name)
 					for (int a = 0; a < random; a++)
 					{
 						GetRegexSubString(regex2, a, sArray[a], sizeof(sValue));
-					}
+					}	
 					for (int a = 0; a < random; a++)
 					{
 						if (StrEqual(sValue, "remove", false))
@@ -451,6 +457,7 @@ Action CheckClientName(int client, Event event, char[] new_name)
 	{
 		TerminateNameUTF8(new_name);
 		SetClientName(client, new_name);
+		ServerCommand("irc_send PRIVMSG #ecj-test :__**Original:**__ `%s`   __**Filtered:**__ `%s`", original_name[client], new_name);
 		GetClientName(client, old_name[client][255], 32);
 		return Plugin_Handled;
 	}
