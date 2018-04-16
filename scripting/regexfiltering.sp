@@ -5,7 +5,7 @@
 
 //Defines
 #define PLUGIN_DESCRIPTION "Regex filtering for names, chat and commands."
-#define PLUGIN_VERSION "2.0.0"
+#define PLUGIN_VERSION "2.1.0"
 
 #define MAX_EXPRESSION_LENGTH 256
 
@@ -251,7 +251,7 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 			{
 				char sName[32];
 				GetClientName(client, sName, sizeof(sName));
-				ServerCommand("irc_send PRIVMSG #ecj-test :%s: %s", sName, sMessage);
+				ServerCommand("irc_send PRIVMSG #ecj-test :%s: `%s`", sName, sMessage);
 				return Plugin_Handled;
 			}
 			
@@ -457,7 +457,7 @@ Action CheckClientName(int client, Event event, char[] new_name)
 	{
 		TerminateNameUTF8(new_name);
 		SetClientName(client, new_name);
-		ServerCommand("irc_send PRIVMSG #ecj-test :\nOriginal: `%s`\nFiltered:`%s`", original_name[client], new_name);
+		ServerCommand("irc_send PRIVMSG #ecj-test :Original: `%s`    Filtered: `%s`", original_name[client], new_name);
 		GetClientName(client, old_name[client][255], 32);
 		return Plugin_Handled;
 	}
