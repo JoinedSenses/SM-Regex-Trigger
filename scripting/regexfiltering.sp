@@ -457,7 +457,9 @@ Action CheckClientName(int client, Event event, char[] new_name)
 	{
 		TerminateNameUTF8(new_name);
 		SetClientName(client, new_name);
-		ServerCommand("irc_send PRIVMSG #ecj-test :Original: `%s`    Filtered: `%s`", original_name[client], new_name);
+		if (StrEqual(new_name, "", false))
+			strcopy(new_name, MAX_NAME_LENGTH, "unnamed");
+		ServerCommand("irc_send PRIVMSG #ecj-test :`%s`  -->  `%s`", original_name[client], new_name);
 		GetClientName(client, old_name[client][255], 32);
 		return Plugin_Handled;
 	}
