@@ -23,9 +23,10 @@ ConVar convar_CheckNames;
 
 //Globals
 bool g_bLate;
+bool g_bChanged[MAXPLAYERS+1];
 
-char old_name[MAXPLAYERS+1][255];
-char original_name[MAXPLAYERS+1][255];
+char old_name[MAXPLAYERS+1][MAX_NAME_LENGTH];
+char original_name[MAXPLAYERS+1][MAX_NAME_LENGTH];
 
 ArrayList g_hArray_Regex_Chat;
 ArrayList g_hArray_Regex_Commands;
@@ -139,16 +140,16 @@ public void OnClientAuthorized(int client, const char[] auth)
 		return;
 	}
 	g_hTrie_Limits[client] = CreateTrie();
-	
+	g_bChanged[client] = false;
 	if (GetConVarBool(convar_CheckNames))
 	{
 		char sName[MAX_NAME_LENGTH];
-		GetClientName(client, original_name[client], 32);
 		GetClientName(client, sName, sizeof(sName));
+		strcopy(original_name[client], MAX_NAME_LENGTH, sName);
 		
 		CheckClientName(client, null, sName);
 	}
-	GetClientName(client, old_name[client][255], 32);
+
 	char clientname[32];
 	GetClientName(client, clientname, sizeof(clientname));
 	PrintToChatAll("%s connected", clientname);
@@ -322,8 +323,11 @@ public Action Event_OnChangeName(Event event, const char[] name, bool dontBroadc
 
 	char sNewName[MAX_NAME_LENGTH];
 	GetEventString(event, "newname", sNewName, sizeof(sNewName));
-	strcopy(original_name[client], MAX_NAME_LENGTH, sNewName);
+	if(!g_bChanged[client])
+		strcopy(original_name[client],MAX_NAME_LENGTH, sNewName);
+
 	CheckClientName(client, event, sNewName);
+
 	
 	return Plugin_Handled;
 }
@@ -410,6 +414,7 @@ Action CheckClientName(int client, Event event, char[] new_name)
 			if (GetTrieValue(currentsection, "replace", value))
 			{
 				changed = true;
+				g_bChanged[client] = true;
 				int random = GetRandomInt(0, GetArraySize(value) - 1);
 				
 				DataPack pack = GetArrayCell(value, random);
@@ -456,37 +461,38 @@ Action CheckClientName(int client, Event event, char[] new_name)
 	if (changed)
 	{
 		TerminateNameUTF8(new_name);
-		SetClientName(client, new_name);
 		if (StrEqual(new_name, "", false))
-			strcopy(new_name, MAX_NAME_LENGTH, "unnamed");
+			strcopy(new_name, MAX_NAME_LENGTH, "unnamed");		
+		SetClientName(client, new_name);
 		ServerCommand("irc_send PRIVMSG #ecj-test :`%s`  -->  `%s`", original_name[client], new_name);
-		GetClientName(client, old_name[client][255], 32);
+		GetClientName(client, old_name[client], MAX_NAME_LENGTH);
 		return Plugin_Handled;
 	}
 	else
 	{
 		if (IsClientInGame(client))
 		{
-			if (StrEqual(old_name[client][255], new_name))
+			if (StrEqual(old_name[client], new_name))
 			{
 				return Plugin_Continue;
 			} 
-			ServerCommand("irc_send PRIVMSG #ecj :%s changed name to %s", old_name[client][255], new_name);
+			ServerCommand("irc_send PRIVMSG #ecj :%s changed name to %s", old_name[client], new_name);
 			if (view_as<TFTeam>(GetClientTeam(client)) == TFTeam_Red)
 			{
-				CPrintToChatAll("* {red}%s{default} changed name to {red}%s{default}", old_name[client][255], new_name);
+				CPrintToChatAll("* {red}%s{default} changed name to {red}%s{default}", old_name[client], new_name);
 			}
 			else if (view_as<TFTeam>(GetClientTeam(client)) == TFTeam_Blue)
 			{
-				CPrintToChatAll("* {blue}%s{default} changed name to {blue}%s{default}", old_name[client][255], new_name);
+				CPrintToChatAll("* {blue}%s{default} changed name to {blue}%s{default}", old_name[client], new_name);
 			}
 			else if (view_as<TFTeam>(GetClientTeam(client)) == TFTeam_Spectator)
 			{
-				CPrintToChatAll("* %s changed name to %s", old_name[client][255], new_name);
+				CPrintToChatAll("* %s changed name to %s", old_name[client], new_name);
 			}
-			//PrintToChatAll("%s changed name to %s", old_name, new_name);
 		}
 	}
+	strcopy(old_name[client], MAX_NAME_LENGTH, new_name);
+	g_bChanged[client] = false;
 	return Plugin_Handled;
 }
 
