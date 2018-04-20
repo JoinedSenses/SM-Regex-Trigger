@@ -29,7 +29,6 @@ sm_regexfilters_check_names "1" // Enable name checking
 sm_regexfilters_irc_enabled "0" //Enable use of IRC relay
 sm_regexfilters_irc_main "" //Public server 'connect' messages are relayed to. Dont include the #
 sm_regexfilters_irc_filtered "" //Hidden channel for filtered message and name relay. Don't include the #
-
 ```
 ##Installation
 Install regexfiltering.smx into your addons folder.
