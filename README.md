@@ -14,7 +14,6 @@ This plugin has included features to include use of SourceIRC when connecting mu
  * Method to relay 'connect' messages to a main IRC channel  
  * Method to relay filtered names and chat messages to a seperate channel for debugging/analysis.  
  * IRC relayed messages are formatted specifically with Discord in mind if it is used (Servers -> IRC -> Discord)  
-```
 
 ## ConVars
 ```
