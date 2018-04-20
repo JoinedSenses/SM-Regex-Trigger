@@ -32,5 +32,5 @@ sm_regexfilters_irc_filtered "" // Hidden channel for filtered message and name 
  * Either install the included config to addons/sourcemod/configs/regexfilters/  
   or create your own at that location.  
 
-Discord formatting of filtered channel:  
+**Discord formatting of filtered channel:**  
 ![alt text](https://i.imgur.com/WhD5wUh.png)
