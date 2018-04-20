@@ -11,10 +11,9 @@ See this plugin for reference, since they are similar: https://forums.alliedmods
 
 This plugin has included features to include use of SourceIRC when connecting multiple servers.  
   Included: 
- ```
-Method to relay 'connect' messages to a main IRC channel  
-Method to relay filtered names and chat messages to a seperate channel for debugging/analysis.  
-IRC relayed messages are formatted specifically with Discord in mind if it is used (Servers -> IRC -> Discord)  
+ * Method to relay 'connect' messages to a main IRC channel  
+ * Method to relay filtered names and chat messages to a seperate channel for debugging/analysis.  
+ * IRC relayed messages are formatted specifically with Discord in mind if it is used (Servers -> IRC -> Discord)  
 ```
 
 ## ConVars
@@ -29,8 +28,8 @@ sm_regexfilters_irc_main "" //Public server 'connect' messages are relayed to. D
 sm_regexfilters_irc_filtered "" //Hidden channel for filtered message and name relay. Don't include the #  
 ```
 ## Installation  
-Install regexfiltering.smx into your addons folder.  
-Either install the included config to addons/sourcemod/configs/regexfilters/  
+ * Install regexfiltering.smx into your addons folder.  
+ * Either install the included config to addons/sourcemod/configs/regexfilters/  
   or create your own at that location.  
 
 Discord formatting of filtered channel:  
