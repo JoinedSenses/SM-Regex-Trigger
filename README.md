@@ -9,8 +9,8 @@ https://regex101.com
 
 See this plugin for reference, since they are similar: https://forums.alliedmods.net/showthread.php?t=71867
 
-This plugin has included features to include use of SourceIRC when connecting multiple servers.  
-  Included: 
+### This plugin has included features to include use of SourceIRC when connecting multiple servers.  
+__**Included:**__ 
  * Method to relay 'connect' messages to a main IRC channel  
  * Method to relay filtered names and chat messages to a seperate channel for debugging/analysis.  
  * IRC relayed messages are formatted specifically with Discord in mind if it is used (Servers -> IRC -> Discord)  
