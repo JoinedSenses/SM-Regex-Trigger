@@ -1,6 +1,6 @@
 # TF2-Regex-Filter
-## A plugin created by Keith Warren [Sky Guardian], modified and maintained by myself.  
-## Serves as a filter for names, chat, and commands.  
+### A plugin created by Keith Warren [Sky Guardian], modified and maintained by myself.  
+### Serves as a filter for names, chat, and commands.  
   
 I have included the regex config file  which I use for my servers. It gets updated regularly.  
 If you are unfamilair with regex, check out  these websites:  
