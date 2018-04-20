@@ -20,6 +20,12 @@ ConVar convar_ConfigPath;
 ConVar convar_CheckChat;
 ConVar convar_CheckCommands;
 ConVar convar_CheckNames;
+ConVar convar_IRC_Enabled;
+ConVar convar_IRC_Main;
+ConVar convar_IRC_Filtered;
+
+char sIRC_Main[32];
+char sIRC_Filtered[32];
 
 //Globals
 bool g_bLate;
@@ -27,6 +33,7 @@ bool g_bChanged[MAXPLAYERS+1];
 
 char old_name[MAXPLAYERS+1][MAX_NAME_LENGTH];
 char original_name[MAXPLAYERS+1][MAX_NAME_LENGTH];
+UserMsg g_umSayText2;
 
 ArrayList g_hArray_Regex_Chat;
 ArrayList g_hArray_Regex_Commands;
@@ -57,11 +64,18 @@ public void OnPluginStart()
 	convar_CheckChat = CreateConVar("sm_regexfilters_check_chat", "1", "Filter out and check chat messages.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	convar_CheckCommands = CreateConVar("sm_regexfilters_check_commands", "1", "Filter out and check commands.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	convar_CheckNames = CreateConVar("sm_regexfilters_check_names", "1", "Filter out and check names.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	convar_IRC_Enabled = CreateConVar("sm_regexfilters_irc_enabled", "0", "Enable IRC relay from SourceIRC", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	convar_IRC_Main =  CreateConVar("sm_regexfilters_irc_main", "", "Main channel for connect message relay", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	convar_IRC_Filtered =  CreateConVar("sm_regexfilters_irc_filtered", "", "Main channel for connect message relay", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 
+	g_umSayText2 = GetUserMessageId("SayText2");
+	HookUserMessage(g_umSayText2, UserMessageHook, true);
+	
 	g_hArray_Regex_Chat = CreateArray(2);
 	g_hArray_Regex_Commands = CreateArray(2);
 	g_hArray_Regex_Names = CreateArray(2);
 	
+	HookEvent("player_connect_client", Event_PlayerConnect, EventHookMode_Pre);
 	HookEvent("player_changename", Event_OnChangeName, EventHookMode_Pre);
 	//RegAdminCmd("sm_testname", Command_TestName, ADMFLAG_ROOT);
 }
@@ -82,6 +96,9 @@ public void OnConfigsExecuted()
 	{
 		return;
 	}
+	
+	GetConVarString(convar_IRC_Main, sIRC_Main, sizeof(sIRC_Main));
+	GetConVarString(convar_IRC_Filtered, sIRC_Filtered, sizeof(sIRC_Filtered));
 	
 	char sConfigPath[PLATFORM_MAX_PATH];
 	GetConVarString(convar_ConfigPath, sConfigPath, sizeof(sConfigPath));
@@ -132,6 +149,29 @@ public void OnMapStart()
 public void OnMapEnd()
 {
 	delete g_hTrie_Limits[0];
+}
+public Action Event_PlayerConnect(Event event, const char[] name, bool dontBroadcast)
+{
+	event.BroadcastDisabled = true;
+	
+	return Plugin_Continue;
+}
+public Action UserMessageHook(UserMsg msg_hd, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
+{
+    char sMessage[96];
+    BfReadString(bf, sMessage, sizeof(sMessage));
+    BfReadString(bf, sMessage, sizeof(sMessage));
+    if (StrContains(sMessage, "Name_Change") != -1)
+    {
+        for (int i = 1; i <= MaxClients; i++)
+        {
+            if (IsClientInGame(i))
+            {
+                return Plugin_Handled;
+            }
+        }
+    }
+    return Plugin_Continue;
 }
 public void OnClientAuthorized(int client, const char[] auth)
 {
@@ -252,7 +292,13 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 			{
 				char sName[32];
 				GetClientName(client, sName, sizeof(sName));
-				ServerCommand("irc_send PRIVMSG #ecj-test :%s: `%s`", sName, sMessage);
+				if (StrContains(sMessage, "`") != -1)
+					ReplaceString(sMessage, sizeof(sMessage), "`", "´");
+				if (GetConVarBool(convar_IRC_Enabled))
+				{
+					PrintToChat(client, "Filtered and sent to %s", sIRC_Filtered);
+					ServerCommand("irc_send PRIVMSG #%s :%s: `%s`", sIRC_Filtered, sName, sMessage);
+				}
 				return Plugin_Handled;
 			}
 			
@@ -314,6 +360,7 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 
 public Action Event_OnChangeName(Event event, const char[] name, bool dontBroadcast)
 {
+	event.BroadcastDisabled = true;
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
 	if (!GetConVarBool(convar_Status) || !GetConVarBool(convar_CheckNames) || !IsPlayerIndex(client) || !IsClientConnected(client) || !IsClientInGame(client))
@@ -324,10 +371,10 @@ public Action Event_OnChangeName(Event event, const char[] name, bool dontBroadc
 	char sNewName[MAX_NAME_LENGTH];
 	GetEventString(event, "newname", sNewName, sizeof(sNewName));
 	if(!g_bChanged[client])
+	{
 		strcopy(original_name[client],MAX_NAME_LENGTH, sNewName);
-
+	}
 	CheckClientName(client, event, sNewName);
-
 	
 	return Plugin_Handled;
 }
@@ -464,7 +511,12 @@ Action CheckClientName(int client, Event event, char[] new_name)
 		if (StrEqual(new_name, "", false))
 			strcopy(new_name, MAX_NAME_LENGTH, "unnamed");		
 		SetClientName(client, new_name);
-		ServerCommand("irc_send PRIVMSG #ecj-test :`%s`  -->  `%s`", original_name[client], new_name);
+		if (StrContains(original_name[client], "`") != -1)
+			ReplaceString(original_name[client], MAX_NAME_LENGTH, "`", "´");
+		if (StrContains(new_name, "`") != -1)
+			ReplaceString(new_name, MAX_NAME_LENGTH, "`", "´");
+		if (GetConVarBool(convar_IRC_Enabled))
+			ServerCommand("irc_send PRIVMSG #%s :`%s`  -->  `%s`", sIRC_Filtered, original_name[client], new_name);
 		GetClientName(client, old_name[client], MAX_NAME_LENGTH);
 		return Plugin_Handled;
 	}
@@ -476,7 +528,8 @@ Action CheckClientName(int client, Event event, char[] new_name)
 			{
 				return Plugin_Continue;
 			} 
-			ServerCommand("irc_send PRIVMSG #ecj :%s changed name to %s", old_name[client], new_name);
+			if (GetConVarBool(convar_IRC_Enabled))
+				ServerCommand("irc_send PRIVMSG #%s :%s changed name to %s", sIRC_Main, old_name[client], new_name);
 			if (view_as<TFTeam>(GetClientTeam(client)) == TFTeam_Red)
 			{
 				CPrintToChatAll("* {red}%s{default} changed name to {red}%s{default}", old_name[client], new_name);

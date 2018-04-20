@@ -1,21 +1,40 @@
 # TF2-Regex-Filter
-A plugin created by Keith Warren [Sky Guardian], modified by myself. 
+A plugin created by Keith Warren [Sky Guardian], modified and maintained by myself. 
 Serves as a filter for names, chat, and commands. 
+I have included the regex config file  which I use for my servers. It gets updated regularly.
+If you are unfamilair with regex, check out  these websites: 
+```
+http://www.rexegg.com/regex-quickstart.html
+https://www.regular-expressions.info/
+https://regex101.com
+```
 
 See this plugin for reference, since they are similar: https://forums.alliedmods.net/showthread.php?t=71867
 
-The uploaded source and plugin here would need to be edited for your own use:
-  Specifically line 465 - I push the connect message to my IRC.
-  There are also some additional irc relay messages, which I have formatted for discord.
-  
-  Filtered items are send to a hidden irc channel, which is then relayed to discord with a bot.
-
-## Requirements
-
-Hide Name Change plugin and Tidy Chat plugin
+This plugin has included features to include use of SourceIRC when connecting multiple servers.
+  Included: 
+ ```
+Method to relay 'connect' messages to a main IRC channel
+Method to relay filtered names and chat messages to a seperate channel for debugging/analysis.
+IRC relayed messages are formatted specifically with Discord in mind if it is used (Servers -> IRC -> Discord)
 ```
-sm_tidychat_on 1 // 0/1 - On/off
-sm_tidychat_connect 1 // 0/1 - Tidy connect messages
+
+## ConVars
+```
+sm_regexfilters_status "1"  // Enable/Disable plugin
+sm_regexfilters_config_path "configs/regexfilters/" //Don't touch. Config path of filters
+sm_regexfilters_check_chat "1" // Enable chat checking
+sm_regexfilters_check_commands "1" // Enable command checking
+sm_regexfilters_check_names "1" // Enable name checking
+sm_regexfilters_irc_enabled "0" //Enable use of IRC relay
+sm_regexfilters_irc_main "" //Public server 'connect' messages are relayed to. Dont include the #
+sm_regexfilters_irc_filtered "" //Hidden channel for filtered message and name relay. Don't include the #
 
 ```
-![alt text](https://i.imgur.com/kcn2GW2.png)
+##Installation
+Install regexfiltering.smx into your addons folder.
+Either install the included config to addons/sourcemod/configs/regexfilters/
+  or create your own at that location.
+
+Discord Formatting:
+![alt text](https://i.imgur.com/WhD5wUh.png)
