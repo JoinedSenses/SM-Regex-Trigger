@@ -1,6 +1,7 @@
 # TF2-Regex-Filter
 A plugin created by Keith Warren [Sky Guardian], modified and maintained by myself.  
 Serves as a filter for names, chat, and commands.  
+  
 I have included the regex config file  which I use for my servers. It gets updated regularly.  
 If you are unfamilair with regex, check out  these websites:  
 http://www.rexegg.com/regex-quickstart.html  
@@ -9,8 +10,8 @@ https://regex101.com
 
 See this plugin for reference, since they are similar: https://forums.alliedmods.net/showthread.php?t=71867
 
-### This plugin has included features to include use of SourceIRC when connecting multiple servers.  
-__**Included:**__ 
+This plugin has included features to include use of _SourceIRC_ when connecting multiple servers.  
+*Included IRC Features:* 
  * Method to relay 'connect' messages to a main IRC channel  
  * Method to relay filtered names and chat messages to a seperate channel for debugging/analysis.  
  * IRC relayed messages are formatted specifically with Discord in mind if it is used (Servers -> IRC -> Discord)  
