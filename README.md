@@ -33,5 +33,5 @@ Install regexfiltering.smx into your addons folder.
 Either install the included config to addons/sourcemod/configs/regexfilters/  
   or create your own at that location.  
 
-Discord Formatting:  
+Discord formatting of filtered channel:  
 ![alt text](https://i.imgur.com/WhD5wUh.png)
