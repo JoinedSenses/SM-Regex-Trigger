@@ -10,8 +10,8 @@ https://regex101.com
 
 See this plugin for reference, since they are similar: https://forums.alliedmods.net/showthread.php?t=71867
 
-This plugin has included features which integrate the use of **SourceIRC** when connecting multiple servers.  
-**Included IRC Features:**
+*This plugin has included features which integrate the use of **SourceIRC** when connecting multiple servers.*  
+## Included IRC Features:
  * Method to relay 'connect' messages to a main IRC channel  
  * Method to relay filtered names and chat messages to a seperate channel for debugging/analysis.  
  * IRC relayed messages are formatted specifically with Discord in mind if it is used (Servers -> IRC -> Discord)  
@@ -28,7 +28,7 @@ sm_regexfilters_irc_main "" // Public server 'connect' messages are relayed to. 
 sm_regexfilters_irc_filtered "" // Hidden channel for filtered message and name relay. Don't include the #  
 ```
 ## Installation  
- * Install regexfiltering.smx into your addons folder.  
+ * Install regexfiltering.smx into your plugins folder.  
  * Either install the included config to addons/sourcemod/configs/regexfilters/  
   or create your own at that location.  
 
