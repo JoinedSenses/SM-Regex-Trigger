@@ -3,6 +3,8 @@
 **Serves as a filter for names, chat, and commands.**  
   
 I have included the regex config file  which I use for my servers. It gets updated regularly.  
+**FYI:** The "blank" section at the top of the config is intended. There is some weird bug occuring when it is removed, more than likely due to the funky characters used.  
+
 If you are unfamilair with regex, check out  these websites:  
 http://www.rexegg.com/regex-quickstart.html  
 https://www.regular-expressions.info/  

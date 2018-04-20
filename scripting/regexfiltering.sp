@@ -296,7 +296,6 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 					ReplaceString(sMessage, sizeof(sMessage), "`", "´");
 				if (GetConVarBool(convar_IRC_Enabled))
 				{
-					PrintToChat(client, "Filtered and sent to %s", sIRC_Filtered);
 					ServerCommand("irc_send PRIVMSG #%s :%s: `%s`", sIRC_Filtered, sName, sMessage);
 				}
 				return Plugin_Handled;
