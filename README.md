@@ -13,7 +13,7 @@ https://regex101.com
 See this plugin for reference, since they are similar: https://forums.alliedmods.net/showthread.php?t=71867
 
 *This plugin has included features which integrate the use of **SourceIRC** when connecting multiple servers.* 
-https://github.com/Azelphur/SourceIRC (Original)
+https://github.com/Azelphur/SourceIRC (Original)  
 https://github.com/JoinedSenses/SourceIRC (Modified)
 ## Included IRC Features:
  * Method to relay 'connect' messages to a main IRC channel  
