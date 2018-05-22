@@ -5,7 +5,7 @@
 
 //Defines
 #define PLUGIN_DESCRIPTION "Regex filtering for names, chat and commands."
-#define PLUGIN_VERSION "2.1.0"
+#define PLUGIN_VERSION "2.1.1"
 
 #define MAX_EXPRESSION_LENGTH 256
 
@@ -20,6 +20,7 @@ ConVar convar_ConfigPath;
 ConVar convar_CheckChat;
 ConVar convar_CheckCommands;
 ConVar convar_CheckNames;
+ConVar convar_UnnamedPrefix;
 ConVar convar_IRC_Enabled;
 ConVar convar_IRC_Main;
 ConVar convar_IRC_Filtered;
@@ -64,6 +65,7 @@ public void OnPluginStart()
 	convar_CheckChat = CreateConVar("sm_regexfilters_check_chat", "1", "Filter out and check chat messages.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	convar_CheckCommands = CreateConVar("sm_regexfilters_check_commands", "1", "Filter out and check commands.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	convar_CheckNames = CreateConVar("sm_regexfilters_check_names", "1", "Filter out and check names.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	convar_UnnamedPrefix = CreateConVar("sm_regexfilters_prefix", "", "Prefix for random name when player has become unnamed");
 	convar_IRC_Enabled = CreateConVar("sm_regexfilters_irc_enabled", "0", "Enable IRC relay from SourceIRC", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	convar_IRC_Main =  CreateConVar("sm_regexfilters_irc_main", "", "Main channel for connect message relay", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	convar_IRC_Filtered =  CreateConVar("sm_regexfilters_irc_filtered", "", "Main channel for connect message relay", FCVAR_NOTIFY, true, 0.0, true, 1.0);
@@ -292,8 +294,12 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 			{
 				char sName[32];
 				GetClientName(client, sName, sizeof(sName));
+				if (StrContains(sName, "`") != -1)
+					ReplaceString(sName, sizeof(sName), "`", "´");				
 				if (StrContains(sMessage, "`") != -1)
-					ReplaceString(sMessage, sizeof(sMessage), "`", "´");
+					ReplaceString(sMessage, sizeof(sMessage), "`", "´");			
+				if (StrContains(sMessage, ";") != -1)
+					ReplaceString(sMessage, sizeof(sMessage), ";", ":");
 				if (GetConVarBool(convar_IRC_Enabled))
 				{
 					ServerCommand("irc_send PRIVMSG #%s :%s: `%s`", sIRC_Filtered, sName, sMessage);
@@ -508,10 +514,18 @@ Action CheckClientName(int client, Event event, char[] new_name)
 	{
 		TerminateNameUTF8(new_name);
 		if (StrEqual(new_name, "", false))
-			strcopy(new_name, MAX_NAME_LENGTH, "unnamed");		
+		{
+			char sPrefix[MAX_NAME_LENGTH];
+			char RandomNameArray[][] = {"Steve","John","James", "Robert","David","Mike","Daniel","Steven","Kevin","Ryan","Gary","Larry","Frank","Jerry","Greg","Doug","Carl","Gernald","Billy","Bobby","Brooke"};
+			int randomnum = GetRandomInt(0, 20);
+			GetConVarString(convar_UnnamedPrefix, sPrefix, sizeof(sPrefix));
+			FormatEx(new_name, MAX_NAME_LENGTH, "%s%s", sPrefix, RandomNameArray[randomnum]);
+		}
 		SetClientName(client, new_name);
 		if (StrContains(original_name[client], "`") != -1)
 			ReplaceString(original_name[client], MAX_NAME_LENGTH, "`", "´");
+		if (StrContains(original_name[client], ";") != -1)
+			ReplaceString(original_name[client], MAX_NAME_LENGTH, ";", ":");
 		if (StrContains(new_name, "`") != -1)
 			ReplaceString(new_name, MAX_NAME_LENGTH, "`", "´");
 		if (GetConVarBool(convar_IRC_Enabled))

@@ -27,6 +27,7 @@ sm_regexfilters_config_path "configs/regexfilters/" // Don't touch. Config path 
 sm_regexfilters_check_chat "1" // Enable chat checking  
 sm_regexfilters_check_commands "1" // Enable command checking  
 sm_regexfilters_check_names "1" // Enable name checking  
+sm_regexfilters_prefix "" // Prefix to add to randomly generated names if a players name is unnamed  
 sm_regexfilters_irc_enabled "0" // Enable use of IRC relay  
 sm_regexfilters_irc_main "" // Public server 'connect' messages are relayed to. Dont include the #  
 sm_regexfilters_irc_filtered "" // Hidden channel for filtered message and name relay. Don't include the #  
