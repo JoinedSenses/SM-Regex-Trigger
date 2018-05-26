@@ -517,7 +517,7 @@ Action CheckClientName(int client, Event event, char[] new_name)
 		{
 			char sPrefix[MAX_NAME_LENGTH];
 			char RandomNameArray[][] = {"Steve","John","James", "Robert","David","Mike","Daniel","Steven","Kevin","Ryan","Gary","Larry","Frank","Jerry","Greg","Doug","Carl","Gernald","Billy","Bobby","Brooke"};
-			int randomnum = GetRandomInt(0, 20);
+			int randomnum = GetRandomInt(0, sizeof(RandomNameArray[]) - 1);
 			GetConVarString(convar_UnnamedPrefix, sPrefix, sizeof(sPrefix));
 			FormatEx(new_name, MAX_NAME_LENGTH, "%s%s", sPrefix, RandomNameArray[randomnum]);
 		}
