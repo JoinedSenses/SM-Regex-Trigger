@@ -5,7 +5,7 @@
 
 //Defines
 #define PLUGIN_DESCRIPTION "Regex filtering for names, chat and commands."
-#define PLUGIN_VERSION "2.1.1"
+#define PLUGIN_VERSION "2.2.0"
 
 #define MAX_EXPRESSION_LENGTH 256
 
@@ -42,8 +42,7 @@ ArrayList g_hArray_Regex_Names;
 
 StringMap g_hTrie_Limits[MAXPLAYERS+1];
 
-public Plugin myinfo = 
-{
+public Plugin myinfo = {
 	name = "Regex Filters", 
 	author = "Keith Warren (Sky Guardian), JoinedSenses", 
 	description = PLUGIN_DESCRIPTION, 
@@ -51,14 +50,12 @@ public Plugin myinfo =
 	url = "https://github.com/SkyGuardian"
 };
 
-public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
-{
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max){
 	g_bLate = late;
 	return APLRes_Success;
 }
 
-public void OnPluginStart()
-{
+public void OnPluginStart(){
 	CreateConVar("sm_regexfilters_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_NOTIFY | FCVAR_DONTRECORD | FCVAR_SPONLY);
 	convar_Status = CreateConVar("sm_regexfilters_status", "1", "Status of the plugin.\n(1 = on, 0 = off)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	convar_ConfigPath = CreateConVar("sm_regexfilters_config_path", "configs/regexfilters/", "Location to store the regex filters at.", FCVAR_NOTIFY);
@@ -92,12 +89,9 @@ public void OnPluginStart()
 //	return Plugin_Handled;
 //}
 
-public void OnConfigsExecuted()
-{
+public void OnConfigsExecuted(){
 	if (!GetConVarBool(convar_Status))
-	{
 		return;
-	}
 	
 	GetConVarString(convar_IRC_Main, sIRC_Main, sizeof(sIRC_Main));
 	GetConVarString(convar_IRC_Filtered, sIRC_Filtered, sizeof(sIRC_Filtered));
@@ -122,74 +116,47 @@ public void OnConfigsExecuted()
 	CreateTimer(2.0, Timer_DelayLate, _, TIMER_FLAG_NO_MAPCHANGE);
 }
 
-public Action Timer_DelayLate(Handle timer)
-{
-	if (g_bLate)
-	{
+public Action Timer_DelayLate(Handle timer){
+	if (g_bLate){
 		if (g_hTrie_Limits[0] == null)
-		{
 			g_hTrie_Limits[0] = CreateTrie();
-		}
-		
-		//for (int i = 1; i <= MaxClients; i++)
-		//{
-		//	if (IsClientInGame(i))
-		//	{
-		//		OnClientPutInServer(i);
-		//	}
-		//}
-		
 		g_bLate = false;
 	}
 }
 
-public void OnMapStart()
-{
+public void OnMapStart(){
 	g_hTrie_Limits[0] = CreateTrie();
 }
 
-public void OnMapEnd()
-{
+public void OnMapEnd(){
 	delete g_hTrie_Limits[0];
 }
-public Action Event_PlayerConnect(Event event, const char[] name, bool dontBroadcast)
-{
+public Action Event_PlayerConnect(Event event, const char[] name, bool dontBroadcast){
 	event.BroadcastDisabled = true;
-	
 	return Plugin_Continue;
 }
-public Action UserMessageHook(UserMsg msg_hd, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
-{
+public Action UserMessageHook(UserMsg msg_hd, BfRead bf, const int[] players, int playersNum, bool reliable, bool init){
     char sMessage[96];
     BfReadString(bf, sMessage, sizeof(sMessage));
     BfReadString(bf, sMessage, sizeof(sMessage));
-    if (StrContains(sMessage, "Name_Change") != -1)
-    {
-        for (int i = 1; i <= MaxClients; i++)
-        {
-            if (IsClientInGame(i))
-            {
-                return Plugin_Handled;
-            }
-        }
+    if (StrContains(sMessage, "Name_Change") != -1){
+	for (int i = 1; i <= MaxClients; i++)
+	    if (IsClientInGame(i))
+		return Plugin_Handled;
     }
     return Plugin_Continue;
 }
-public void OnClientAuthorized(int client, const char[] auth)
-{
+public void OnClientAuthorized(int client, const char[] auth){
 	if (!GetConVarBool(convar_Status))
-	{
 		return;
-	}
 	g_hTrie_Limits[client] = CreateTrie();
 	g_bChanged[client] = false;
-	if (GetConVarBool(convar_CheckNames))
-	{
+	if (GetConVarBool(convar_CheckNames)){
 		char sName[MAX_NAME_LENGTH];
 		GetClientName(client, sName, sizeof(sName));
 		strcopy(original_name[client], MAX_NAME_LENGTH, sName);
 		
-		CheckClientName(client, null, sName);
+		CheckClientName(client, sName);
 	}
 
 	char clientname[32];
@@ -197,25 +164,19 @@ public void OnClientAuthorized(int client, const char[] auth)
 	PrintToChatAll("%s connected", clientname);
 }
 
-public void OnClientDisconnect(int client)
-{
+public void OnClientDisconnect(int client){
 	delete g_hTrie_Limits[client];
 }
 
-public Action OnClientSayCommand(int client, const char[] command, const char[] sArgs)
-{
+public Action OnClientSayCommand(int client, const char[] command, const char[] sArgs){
 	if (!GetConVarBool(convar_Status) || !GetConVarBool(convar_CheckChat))
-	{
 		return Plugin_Continue;
-	}
 	
 	char sMessage[255];
 	strcopy(sMessage, sizeof(sMessage), sArgs);
 	
 	if (strlen(sMessage) == 0)
-	{
 		return Plugin_Continue;
-	}
 	
 	int begin;
 	int end = GetArraySize(g_hArray_Regex_Chat);
@@ -229,46 +190,35 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 	any value;
 	char sValue[256];
 	
-	while (begin != end)
-	{
+	while (begin != end){
 		GetArrayArray(g_hArray_Regex_Chat, begin, save, sizeof(save));
 		regex = view_as<Regex>(save[0]);
 		currentsection = view_as<StringMap>(save[1]);
 		
 		value = MatchRegex(regex, sMessage, errorcode);
 		
-		if (value > 0 && errorcode == REGEX_ERROR_NONE)
-		{
+		if (value > 0 && errorcode == REGEX_ERROR_NONE){
 			if (GetTrieValue(currentsection, "immunity", value) && CheckCommandAccess(client, "", value, true))
-			{
 				return Plugin_Continue;
-			}
 			
 			if (GetTrieString(currentsection, "warn", sValue, sizeof(sValue)))
-			{
 				CPrintToChat(client, "[{red}Filter{default}] {lightgreen}%s{default}", sValue);
-			}
 			
 			if (GetTrieString(currentsection, "action", sValue, sizeof(sValue)))
-			{
 				ParseAndExecute(client, sValue, sizeof(sValue));
-			}
 			
-			if (GetTrieValue(currentsection, "limit", value))
-			{
+			if (GetTrieValue(currentsection, "limit", value)){
 				FormatEx(sValue, sizeof(sValue), "%i", regex);
 				
 				any at;
 				GetTrieValue(g_hTrie_Limits[client], sValue, at);
 				
 				int mod;
-				if (GetTrieValue(currentsection, "forgive", mod))
-				{
+				if (GetTrieValue(currentsection, "forgive", mod)){
 					FormatEx(sValue, sizeof(sValue), "%i-limit", regex);
 					
 					float date;
-					if (!GetTrieValue(g_hTrie_Limits[client], sValue, date))
-					{
+					if (!GetTrieValue(g_hTrie_Limits[client], sValue, date)){
 						date = GetGameTime();
 						SetTrieValue(g_hTrie_Limits[client], sValue, date);
 					}
@@ -279,19 +229,14 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 				
 				SetTrieValue(g_hTrie_Limits[client], sValue, at);
 				
-				if (at > value)
-				{
+				if (at > value){
 					if (GetTrieString(currentsection, "punish", sValue, sizeof(sValue)))
-					{
 						ParseAndExecute(client, sValue, sizeof(sValue));
-					}
-					
 					return Plugin_Handled;
 				}
 			}
 			
-			if (GetTrieValue(currentsection, "block", value) && view_as<bool>(value))
-			{
+			if (GetTrieValue(currentsection, "block", value) && view_as<bool>(value)){
 				char sName[32];
 				GetClientName(client, sName, sizeof(sName));
 				if (StrContains(sName, "`") != -1)
@@ -301,14 +246,11 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 				if (StrContains(sMessage, ";") != -1)
 					ReplaceString(sMessage, sizeof(sMessage), ";", ":");
 				if (GetConVarBool(convar_IRC_Enabled))
-				{
 					ServerCommand("irc_send PRIVMSG #%s :%s: `%s`", sIRC_Filtered, sName, sMessage);
-				}
 				return Plugin_Handled;
 			}
 			
-			if (GetTrieValue(currentsection, "replace", value))
-			{
+			if (GetTrieValue(currentsection, "replace", value)){
 				changed = true;
 				int random = GetRandomInt(0, GetArraySize(value) - 1);
 				
@@ -319,25 +261,18 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 				ReadPackString(pack, sValue, sizeof(sValue));
 				
 				if (regex2 == null)
-				{
 					regex2 = regex;
-				}
 				
 				random = MatchRegex(regex2, sMessage, errorcode);
 				
-				if (random > 0 && errorcode == REGEX_ERROR_NONE)
-				{
+				if (random > 0 && errorcode == REGEX_ERROR_NONE){
 					char[][] sArray = new char[random][256];
 					
 					for (int a = 0; a < random; a++)
-					{
 						GetRegexSubString(regex2, a, sArray[a], sizeof(sValue));
-					}
 					
 					for (int a = 0; a < random; a++)
-					{
 						ReplaceString(sMessage, sizeof(sMessage), sArray[a], sValue);
-					}
 					
 					begin = 0;
 				}
@@ -347,14 +282,10 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 		begin++;
 	}
 	
-	if (changed)
-	{
+	if (changed){
 		if (IsClientConsole(client))
-		{
 			ServerCommand("say %s", sMessage);
-		}
-		else
-		{
+		else{
 			FakeClientCommand(client, "%s %s", command, sMessage);
 			return Plugin_Handled;
 		}
@@ -363,28 +294,22 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 	return Plugin_Continue;
 }
 
-public Action Event_OnChangeName(Event event, const char[] name, bool dontBroadcast)
-{
+public Action Event_OnChangeName(Event event, const char[] name, bool dontBroadcast){
 	event.BroadcastDisabled = true;
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
 	if (!GetConVarBool(convar_Status) || !GetConVarBool(convar_CheckNames) || !IsPlayerIndex(client) || !IsClientConnected(client) || !IsClientInGame(client))
-	{
 		return Plugin_Continue;
-	}
 
 	char sNewName[MAX_NAME_LENGTH];
 	GetEventString(event, "newname", sNewName, sizeof(sNewName));
 	if(!g_bChanged[client])
-	{
 		strcopy(original_name[client],MAX_NAME_LENGTH, sNewName);
-	}
-	CheckClientName(client, event, sNewName);
+	CheckClientName(client, sNewName);
 	
 	return Plugin_Handled;
 }
-Action CheckClientName(int client, Event event, char[] new_name)
-{
+Action CheckClientName(int client, char[] new_name){
 	int begin;
 	int end = GetArraySize(g_hArray_Regex_Names);
 	RegexError errorcode = REGEX_ERROR_NONE;
@@ -397,46 +322,36 @@ Action CheckClientName(int client, Event event, char[] new_name)
 	any value;
 	char sValue[256];
 	
-	while (begin != end)
-	{
+	while (begin != end){
 		GetArrayArray(g_hArray_Regex_Names, begin, save, sizeof(save));
 		regex = view_as<Regex>(save[0]);
 		currentsection = view_as<StringMap>(save[1]);
-		
+		if (StrEqual(new_name, ""))
+			break;
 		value = MatchRegex(regex, new_name, errorcode);
-		
-		if (value > 0 && errorcode == REGEX_ERROR_NONE)
-		{
+
+		if (value > 0 && errorcode == REGEX_ERROR_NONE){
 			if (GetTrieValue(currentsection, "immunity", value) && CheckCommandAccess(client, "", value, true))
-			{
 				return Plugin_Continue;
-			}
 			
 			if (GetTrieString(currentsection, "warn", sValue, sizeof(sValue)))
-			{
 				CPrintToChat(client, "[{red}Filter{default}] {lightgreen}%s{default}", sValue);
-			}
 			
 			if (GetTrieString(currentsection, "action", sValue, sizeof(sValue)))
-			{
 				ParseAndExecute(client, sValue, sizeof(sValue));
-			}
 			
-			if (GetTrieValue(currentsection, "limit", value))
-			{
+			if (GetTrieValue(currentsection, "limit", value)){
 				FormatEx(sValue, sizeof(sValue), "%i", regex);
 				
 				any at;
 				GetTrieValue(g_hTrie_Limits[client], sValue, at);
 				
 				int mod;
-				if (GetTrieValue(currentsection, "forgive", mod))
-				{
+				if (GetTrieValue(currentsection, "forgive", mod)){
 					FormatEx(sValue, sizeof(sValue), "%i-limit", regex);
 					
 					float date;
-					if (!GetTrieValue(g_hTrie_Limits[client], sValue, date))
-					{
+					if (!GetTrieValue(g_hTrie_Limits[client], sValue, date)){
 						date = GetGameTime();
 						SetTrieValue(g_hTrie_Limits[client], sValue, date);
 					}
@@ -447,24 +362,18 @@ Action CheckClientName(int client, Event event, char[] new_name)
 				
 				SetTrieValue(g_hTrie_Limits[client], sValue, at);
 				
-				if (at > value)
-				{
+				if (at > value){
 					if (GetTrieString(currentsection, "punish", sValue, sizeof(sValue)))
-					{
 						ParseAndExecute(client, sValue, sizeof(sValue));
-					}
 					
 					return Plugin_Handled;
 				}
 			}
 			
 			if (GetTrieValue(currentsection, "block", value) && view_as<bool>(value))
-			{
 				return Plugin_Handled;
-			}
 			
-			if (GetTrieValue(currentsection, "replace", value))
-			{
+			if (GetTrieValue(currentsection, "replace", value)){
 				changed = true;
 				g_bChanged[client] = true;
 				int random = GetRandomInt(0, GetArraySize(value) - 1);
@@ -476,47 +385,37 @@ Action CheckClientName(int client, Event event, char[] new_name)
 				ReadPackString(pack, sValue, sizeof(sValue));
 
 				if (regex2 == null)
-				{
 					regex2 = regex;
-				}
 				
 				random = MatchRegex(regex2, new_name, errorcode);
 				
-				if (random > 0 && errorcode == REGEX_ERROR_NONE)
-				{
+				if (random > 0 && errorcode == REGEX_ERROR_NONE){
 					char[][] sArray = new char[random][256];
 					
 					for (int a = 0; a < random; a++)
-					{
 						GetRegexSubString(regex2, a, sArray[a], sizeof(sValue));
-					}	
-					for (int a = 0; a < random; a++)
-					{
+						
+					for (int a = 0; a < random; a++){
 						if (StrEqual(sValue, "remove", false))
-						{
 							ReplaceString(new_name, MAX_NAME_LENGTH, sArray[a], "");
-						}
 						else
-						{
 							ReplaceString(new_name, MAX_NAME_LENGTH, sArray[a], sValue);
-						}
-					}
-					
+					}	
 					begin = 0;
 				}
 			}
 		}
-		
 		begin++;
 	}
 
-	if (changed)
-	{
+	if (changed){
 		TerminateNameUTF8(new_name);
-		if (StrEqual(new_name, "", false))
-		{
+		if (StrEqual(new_name, "", false)){
 			char sPrefix[MAX_NAME_LENGTH];
-			char RandomNameArray[][] = {"Steve","John","James", "Robert","David","Mike","Daniel","Steven","Kevin","Ryan","Gary","Larry","Frank","Jerry","Greg","Doug","Carl","Gernald","Billy","Bobby","Brooke"};
+			char RandomNameArray[][] = {
+				"Steve","John","James", "Robert","David","Mike","Daniel","Kevin","Ryan","Gary",
+				"Larry","Frank","Jerry","Greg","Doug","Carl","Gerald","Billy","Bobby","Brooke","Bort"
+				};
 			int randomnum = GetRandomInt(0, sizeof(RandomNameArray[]) - 1);
 			GetConVarString(convar_UnnamedPrefix, sPrefix, sizeof(sPrefix));
 			FormatEx(new_name, MAX_NAME_LENGTH, "%s%s", sPrefix, RandomNameArray[randomnum]);
@@ -533,70 +432,51 @@ Action CheckClientName(int client, Event event, char[] new_name)
 		GetClientName(client, old_name[client], MAX_NAME_LENGTH);
 		return Plugin_Handled;
 	}
-	else
-	{
-		if (IsClientInGame(client))
-		{
+	else {
+		if (IsClientInGame(client)) {
 			if (StrEqual(old_name[client], new_name))
-			{
 				return Plugin_Continue;
-			} 
 			if (GetConVarBool(convar_IRC_Enabled))
 				ServerCommand("irc_send PRIVMSG #%s :%s changed name to %s", sIRC_Main, old_name[client], new_name);
 			if (view_as<TFTeam>(GetClientTeam(client)) == TFTeam_Red)
-			{
 				CPrintToChatAll("* {red}%s{default} changed name to {red}%s{default}", old_name[client], new_name);
-			}
 			else if (view_as<TFTeam>(GetClientTeam(client)) == TFTeam_Blue)
-			{
 				CPrintToChatAll("* {blue}%s{default} changed name to {blue}%s{default}", old_name[client], new_name);
-			}
 			else if (view_as<TFTeam>(GetClientTeam(client)) == TFTeam_Spectator)
-			{
 				CPrintToChatAll("* %s changed name to %s", old_name[client], new_name);
-			}
 		}
 	}
 	strcopy(old_name[client], MAX_NAME_LENGTH, new_name);
+	changed = false;
 	g_bChanged[client] = false;
 	return Plugin_Handled;
 }
 
-void TerminateNameUTF8(char[] name) // ensures that utf8 names are properly terminated
-{ 
+// ensures that utf8 names are properly terminated
+void TerminateNameUTF8(char[] name) { 
 	int len = strlen(name); 
 	
-	for (int i = 0; i < len; i++) 
-	{ 
-		int bytes = IsCharMB(name[i]); 
-		
-		if (bytes > 1) 
-		{ 
-			if (len - i < bytes) 
-			{ 
-				name[i] = '\0'; 
-				return; 
-			} 
-			
-			i += bytes - 1; 
-		} 
-	} 
+	for (int i = 0; i < len; i++){
+		int bytes = IsCharMB(name[i]);
+		if (bytes > 1){
+			if (len - i < bytes){
+				name[i] = '\0';
+				return;
+			}
+			i += bytes - 1;
+		}
+	}
 }
 
-public Action OnClientCommand(int client, int args)
-{
+public Action OnClientCommand(int client, int args){
 	if (!GetConVarBool(convar_Status) || !GetConVarBool(convar_CheckCommands))
-	{
 		return Plugin_Continue;
-	}
 	
 	char sCommand[255];
 	GetCmdArg(0, sCommand, sizeof(sCommand));
 	
 	if (strlen(sCommand) == 0)
-	{
 		return Plugin_Continue;
-	}
 	
 	int begin;
 	int end = GetArraySize(g_hArray_Regex_Commands);
@@ -610,46 +490,35 @@ public Action OnClientCommand(int client, int args)
 	any value;
 	char sValue[256];
 	
-	while (begin != end)
-	{
+	while (begin != end){
 		GetArrayArray(g_hArray_Regex_Commands, begin, save, sizeof(save));
 		regex = view_as<Regex>(save[0]);
 		currentsection = view_as<StringMap>(save[1]);
 		
 		value = MatchRegex(regex, sCommand, errorcode);
 		
-		if (value > 0 && errorcode == REGEX_ERROR_NONE)
-		{
+		if (value > 0 && errorcode == REGEX_ERROR_NONE){
 			if (GetTrieValue(currentsection, "immunity", value) && CheckCommandAccess(client, "", value, true))
-			{
 				return Plugin_Continue;
-			}
 			
 			if (GetTrieString(currentsection, "warn", sValue, sizeof(sValue)))
-			{
 				ReplyToCommand(client, "[Filter] %s", sValue);
-			}
 			
 			if (GetTrieString(currentsection, "action", sValue, sizeof(sValue)))
-			{
 				ParseAndExecute(client, sValue, sizeof(sValue));
-			}
 			
-			if (GetTrieValue(currentsection, "limit", value))
-			{
+			if (GetTrieValue(currentsection, "limit", value)){
 				FormatEx(sValue, sizeof(sValue), "%i", regex);
 				
 				any at;
 				GetTrieValue(g_hTrie_Limits[client], sValue, at);
 				
 				int mod;
-				if (GetTrieValue(currentsection, "forgive", mod))
-				{
+				if (GetTrieValue(currentsection, "forgive", mod)){
 					FormatEx(sValue, sizeof(sValue), "%i-limit", regex);
 					
 					float date;
-					if (!GetTrieValue(g_hTrie_Limits[client], sValue, date))
-					{
+					if (!GetTrieValue(g_hTrie_Limits[client], sValue, date)){
 						date = GetGameTime();
 						SetTrieValue(g_hTrie_Limits[client], sValue, date);
 					}
@@ -657,27 +526,21 @@ public Action OnClientCommand(int client, int args)
 					date = GetGameTime() - date;
 					at = at - (RoundToCeil(date) & mod);
 				}
-				
+
 				SetTrieValue(g_hTrie_Limits[client], sValue, at);
-				
-				if (at > value)
-				{
+
+				if (at > value){
 					if (GetTrieString(currentsection, "punish", sValue, sizeof(sValue)))
-					{
 						ParseAndExecute(client, sValue, sizeof(sValue));
-					}
-					
+
 					return Plugin_Handled;
 				}
 			}
 			
 			if (GetTrieValue(currentsection, "block", value) && view_as<bool>(value))
-			{
 				return Plugin_Handled;
-			}
 			
-			if (GetTrieValue(currentsection, "replace", value))
-			{
+			if (GetTrieValue(currentsection, "replace", value)){
 				changed = true;
 				int random = GetRandomInt(0, GetArraySize(value) - 1);
 				
@@ -688,42 +551,30 @@ public Action OnClientCommand(int client, int args)
 				ReadPackString(pack, sValue, sizeof(sValue));
 				
 				if (regex2 == null)
-				{
 					regex2 = regex;
-				}
 				
 				random = MatchRegex(regex2, sCommand, errorcode);
 				
-				if (random > 0 && errorcode == REGEX_ERROR_NONE)
-				{
+				if (random > 0 && errorcode == REGEX_ERROR_NONE){
 					char[][] sArray = new char[random][256];
 					
 					for (int a = 0; a < random; a++)
-					{
 						GetRegexSubString(regex2, a, sArray[a], sizeof(sValue));
-					}
 					
 					for (int a = 0; a < random; a++)
-					{
 						ReplaceString(sCommand, sizeof(sCommand), sArray[a], sValue);
-					}
 					
 					begin = 0;
 				}
 			}
 		}
-		
 		begin++;
 	}
 	
-	if (changed)
-	{
+	if (changed){
 		if (IsClientConsole(client))
-		{
 			ServerCommand("%s", sCommand);
-		}
-		else
-		{
+		else {
 			FakeClientCommand(client, "%s", sCommand);
 			return Plugin_Handled;
 		}
@@ -732,25 +583,18 @@ public Action OnClientCommand(int client, int args)
 	return Plugin_Continue;
 }
 
-void ParseAndExecute(int client, char[] command, int size)
-{
+void ParseAndExecute(int client, char[] command, int size) {
 	char sReplace[256];
 	
 	if (IsClientConsole(client))
-	{
 		FormatEx(sReplace, sizeof(sReplace), "0");
-	}
 	else
-	{
 		FormatEx(sReplace, sizeof(sReplace), "%i", GetClientUserId(client));
-	}
 	
 	ReplaceString(command, size, "%u", sReplace);
 	
 	if (!IsClientConsole(client))
-	{
 		FormatEx(sReplace, sizeof(sReplace), "%i", client);
-	}
 	
 	ReplaceString(command, size, "%i", sReplace);
 	
@@ -760,22 +604,16 @@ void ParseAndExecute(int client, char[] command, int size)
 	ServerCommand(command);
 }
 
-void LoadExpressions(const char[] file)
-{
+void LoadExpressions(const char[] file){
 	KeyValues kv = CreateKeyValues("RegexFilters");
 	
-	if (FileExists(file))
-	{
+	if (FileExists(file)){
 		FileToKeyValues(kv, file);
-	}
-	{
-		KeyValuesToFile(kv, file);
+		// KeyValuesToFile(kv, file);
 	}
 	
-	if (KvGotoFirstSubKey(kv))
-	{
-		do
-		{
+	if (KvGotoFirstSubKey(kv)){
+		do{
 			char sName[128];
 			KvGetSectionName(kv, sName, sizeof(sName));
 			
@@ -790,40 +628,31 @@ void LoadExpressions(const char[] file)
 	delete kv;
 }
 
-void ParseSectionValues(KeyValues kv, StringMap currentsection)
-{
+void ParseSectionValues(KeyValues kv, StringMap currentsection){
 	if (!KvGotoFirstSubKey(kv, false))
-	{
 		return;
-	}
 	
-	do
-	{
+	do{
 		char sKey[128];
 		KvGetSectionName(kv, sKey, sizeof(sKey));
 		
 		char sValue[128];
 		
-		if (StrEqual(sKey, "chatpattern"))
-		{
+		if (StrEqual(sKey, "chatpattern")){
 			KvGetString(kv, NULL_STRING, sValue, sizeof(sValue));
 			RegisterExpression(sValue, currentsection, g_hArray_Regex_Chat);
 		}
-		else if (StrEqual(sKey, "cmdpattern") || StrEqual(sKey, "commandkeyword"))
-		{
+		else if (StrEqual(sKey, "cmdpattern") || StrEqual(sKey, "commandkeyword")){
 			KvGetString(kv, NULL_STRING, sValue, sizeof(sValue));
 			RegisterExpression(sValue, currentsection, g_hArray_Regex_Commands);
 		}
-		else if (StrEqual(sKey, "namepattern"))
-		{
+		else if (StrEqual(sKey, "namepattern")){
 			KvGetString(kv, NULL_STRING, sValue, sizeof(sValue));
 			RegisterExpression(sValue, currentsection, g_hArray_Regex_Names);
 		}
-		else if (StrEqual(sKey, "replace"))
-		{
+		else if (StrEqual(sKey, "replace")){
 			any value;
-			if (!GetTrieValue(currentsection, "replace", value))
-			{
+			if (!GetTrieValue(currentsection, "replace", value)){
 				value = CreateArray();
 				SetTrieValue(currentsection, "replace", value);
 			}
@@ -831,11 +660,9 @@ void ParseSectionValues(KeyValues kv, StringMap currentsection)
 			KvGetString(kv, NULL_STRING, sValue, sizeof(sValue));
 			AddReplacement(sValue, value);
 		}
-		else if (StrEqual(sKey, "replacepattern"))
-		{
+		else if (StrEqual(sKey, "replacepattern")){
 			any value;
-			if (!GetTrieValue(currentsection, "replace", value))
-			{
+			if (!GetTrieValue(currentsection, "replace", value)){
 				value = CreateArray();
 				SetTrieValue(currentsection, "replace", value);
 			}
@@ -844,34 +671,23 @@ void ParseSectionValues(KeyValues kv, StringMap currentsection)
 			AddPatternReplacement(sValue, value);
 		}
 		else if (StrEqual(sKey, "block"))
-		{
 			SetTrieValue(currentsection, sKey, KvGetNum(kv, NULL_STRING));
-		}
-		else if (StrEqual(sKey, "action"))
-		{
+		else if (StrEqual(sKey, "action")){
 			KvGetString(kv, NULL_STRING, sValue, sizeof(sValue));
-			SetTrieString(currentsection, sKey, sValue);
-		}
-		else if (StrEqual(sKey, "warn"))
-		{
+			SetTrieString(currentsection, sKey, sValue);}
+		else if (StrEqual(sKey, "warn")){
 			KvGetString(kv, NULL_STRING, sValue, sizeof(sValue));
 			SetTrieString(currentsection, sKey, sValue);
 		}
 		else if (StrEqual(sKey, "limit"))
-		{
 			SetTrieValue(currentsection, sKey, KvGetNum(kv, NULL_STRING));
-		}
 		else if (StrEqual(sKey, "forgive"))
-		{
 			SetTrieValue(currentsection, sKey, KvGetNum(kv, NULL_STRING));
-		}
-		else if (StrEqual(sKey, "punish"))
-		{
+		else if (StrEqual(sKey, "punish")){
 			KvGetString(kv, NULL_STRING, sValue, sizeof(sValue));
 			SetTrieString(currentsection, sKey, sValue);
 		}
-		else if (StrEqual(sKey, "immunity"))
-		{
+		else if (StrEqual(sKey, "immunity")){
 			KvGetString(kv, NULL_STRING, sValue, sizeof(sValue));
 			SetTrieValue(currentsection, sKey, ReadFlagString(sValue));
 		}
@@ -881,22 +697,18 @@ void ParseSectionValues(KeyValues kv, StringMap currentsection)
 	KvGoBack(kv);
 }
 
-void RegisterExpression(const char[] key, StringMap currentsection, ArrayList data)
-{
+void RegisterExpression(const char[] key, StringMap currentsection, ArrayList data){
 	char sExpression[MAX_EXPRESSION_LENGTH];
 	int flags = ParseExpression(key, sExpression, sizeof(sExpression));
 	
 	if (flags == -1)
-	{
 		return;
-	}
 	
 	char sError[128];
 	RegexError errorcode;
 	Regex regex = CompileRegex(sExpression, flags, sError, sizeof(sError), errorcode);
 	
-	if (regex == null)
-	{
+	if (regex == null){
 		LogError("Error compiling expression '%s' with flags '%i': [%i] %s", sExpression, flags, errorcode, sError);
 		return;
 	}
@@ -908,8 +720,7 @@ void RegisterExpression(const char[] key, StringMap currentsection, ArrayList da
 	PushArrayArray(data, save, sizeof(save));
 }
 
-int ParseExpression(const char[] key, char[] expression, int size)
-{
+int ParseExpression(const char[] key, char[] expression, int size){
 	strcopy(expression, size, key);
 	TrimString(expression);
 	
@@ -918,25 +729,20 @@ int ParseExpression(const char[] key, char[] expression, int size)
 	int b;
 	int c;
 	
-	if (expression[strlen(expression) - 1] == '\'')
-	{
-		for (; expression[flags] != '\0'; flags++)
-		{
-			if (expression[flags] == '\'')
-			{
+	if (expression[strlen(expression) - 1] == '\''){
+		for (; expression[flags] != '\0'; flags++){
+			if (expression[flags] == '\''){
 				a++;
 				b = c;
 				c = flags;
 			}
 		}
 		
-		if (a < 2)
-		{
+		if (a < 2){
 			LogError("Regex Filter line malformed: %s", key);
 			return -1;
 		}
-		else
-		{
+		else{
 			expression[b] = '\0';
 			expression[c] = '\0';
 			flags = FindRegexFlags(expression[b + 1]);
@@ -944,63 +750,42 @@ int ParseExpression(const char[] key, char[] expression, int size)
 			TrimString(expression);
 			
 			if (a > 2 && expression[0] == '\'')
-			{
 				strcopy(expression, strlen(expression) - 1, expression[1]);
-			}
 		}
 	}
 	
 	return flags;
 }
 
-int FindRegexFlags(const char[] flags)
-{
+int FindRegexFlags(const char[] flags){
 	char sBuffer[7][16];
 	ExplodeString(flags, "|", sBuffer, 7, 16);
 	
 	int new_flags;
-	for (int i = 0; i < 7; i++)
-	{
+	for (int i = 0; i < 7; i++){
 		if (sBuffer[i][0] == '\0')
-		{
 			continue;
-		}
 		
 		if (StrEqual(sBuffer[i], "CASELESS"))
-		{
 			new_flags |= PCRE_CASELESS;
-		}
 		else if (StrEqual(sBuffer[i], "MULTILINE"))
-		{
 			new_flags |= PCRE_MULTILINE;
-		}
 		else if (StrEqual(sBuffer[i], "DOTALL"))
-		{
 			new_flags |= PCRE_DOTALL;
-		}
 		else if (StrEqual(sBuffer[i], "EXTENDED"))
-		{
 			new_flags |= PCRE_EXTENDED;
-		}
 		else if (StrEqual(sBuffer[i], "UNGREEDY"))
-		{
 			new_flags |= PCRE_UNGREEDY;
-		}
 		else if (StrEqual(sBuffer[i], "UTF8"))
-		{
 			new_flags |= PCRE_UTF8;
-		}
 		else if (StrEqual(sBuffer[i], "NO_UTF8_CHECK"))
-		{
 			new_flags |= PCRE_NO_UTF8_CHECK;
-		}
 	}
 	
 	return new_flags;
 }
 
-void AddReplacement(const char[] value, ArrayList data)
-{
+void AddReplacement(const char[] value, ArrayList data){
 	DataPack pack = CreateDataPack();
 	WritePackCell(pack, view_as<Handle>(null));
 	WritePackString(pack, value);
@@ -1008,22 +793,18 @@ void AddReplacement(const char[] value, ArrayList data)
 	PushArrayCell(data, pack);
 }
 
-void AddPatternReplacement(const char[] value, ArrayList data)
-{
+void AddPatternReplacement(const char[] value, ArrayList data){
 	char sExpression[MAX_EXPRESSION_LENGTH];
 	int flags = ParseExpression(value, sExpression, sizeof(sExpression));
 	
 	if (flags == -1)
-	{
 		return;
-	}
 	
 	char sError[128];
 	RegexError errorcode;
 	Regex regex = CompileRegex(sExpression, flags, sError, sizeof(sError), errorcode);
 	
-	if (regex == null)
-	{
+	if (regex == null){
 		LogError("Error compiling expression '%s' with flags '%i': [%i] %s", sExpression, flags, errorcode, sError);
 		return;
 	}
