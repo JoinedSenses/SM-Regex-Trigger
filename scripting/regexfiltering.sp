@@ -15,32 +15,37 @@
 #include <regex>
 
 //ConVars
-ConVar convar_Status;
-ConVar convar_ConfigPath;
-ConVar convar_CheckChat;
-ConVar convar_CheckCommands;
-ConVar convar_CheckNames;
-ConVar convar_UnnamedPrefix;
-ConVar convar_IRC_Enabled;
-ConVar convar_IRC_Main;
-ConVar convar_IRC_Filtered;
+ConVar
+	convar_Status,
+	convar_ConfigPath,
+	convar_CheckChat,
+	convar_CheckCommands,
+	convar_CheckNames,
+	convar_UnnamedPrefix,
+	convar_IRC_Enabled,
+	convar_IRC_Main,
+	convar_IRC_Filtered;
 
-char sIRC_Main[32];
-char sIRC_Filtered[32];
+char 
+	sIRC_Main[32],
+	sIRC_Filtered[32],
+	old_name[MAXPLAYERS+1][MAX_NAME_LENGTH],
+	original_name[MAXPLAYERS+1][MAX_NAME_LENGTH];
 
 //Globals
-bool g_bLate;
-bool g_bChanged[MAXPLAYERS+1];
+bool
+	g_bLate,
+	g_bChanged[MAXPLAYERS+1];
 
-char old_name[MAXPLAYERS+1][MAX_NAME_LENGTH];
-char original_name[MAXPLAYERS+1][MAX_NAME_LENGTH];
 UserMsg g_umSayText2;
 
-ArrayList g_hArray_Regex_Chat;
-ArrayList g_hArray_Regex_Commands;
-ArrayList g_hArray_Regex_Names;
+ArrayList
+	g_hArray_Regex_Chat,
+	g_hArray_Regex_Commands,
+	g_hArray_Regex_Names;
 
-StringMap g_hTrie_Limits[MAXPLAYERS+1];
+StringMap
+	g_hTrie_Limits[MAXPLAYERS+1];
 
 public Plugin myinfo = {
 	name = "Regex Filters", 
@@ -76,7 +81,7 @@ public void OnPluginStart(){
 	
 	HookEvent("player_connect_client", Event_PlayerConnect, EventHookMode_Pre);
 	HookEvent("player_changename", Event_OnChangeName, EventHookMode_Pre);
-	//RegAdminCmd("sm_testname", Command_TestName, ADMFLAG_ROOT);
+	// RegAdminCmd("sm_testname", Command_TestName, ADMFLAG_ROOT);
 }
 
 //public Action Command_TestName(int client, int args)
@@ -84,34 +89,32 @@ public void OnPluginStart(){
 //	char sName[MAX_NAME_LENGTH];
 //	GetCmdArgString(sName, sizeof(sName));
 //	
-//	Action value = CheckClientName(client, null, sName);
-//	PrintToDrixevel("action value: %i", value);
+//	Action value = CheckClientName(client, sName);
+//	PrintToChat(client, "action value: %i", value);
 //	return Plugin_Handled;
 //}
 
 public void OnConfigsExecuted(){
-	if (!GetConVarBool(convar_Status))
+	if (!convar_Status.BoolValue)
 		return;
 	
-	GetConVarString(convar_IRC_Main, sIRC_Main, sizeof(sIRC_Main));
-	GetConVarString(convar_IRC_Filtered, sIRC_Filtered, sizeof(sIRC_Filtered));
+	convar_IRC_Main.GetString(sIRC_Main, sizeof(sIRC_Main));
+	convar_IRC_Filtered.GetString(sIRC_Filtered, sizeof(sIRC_Filtered));
 	
-	char sConfigPath[PLATFORM_MAX_PATH];
-	GetConVarString(convar_ConfigPath, sConfigPath, sizeof(sConfigPath));
-	
-	char sPath[PLATFORM_MAX_PATH];
+	char
+		sConfigPath[PLATFORM_MAX_PATH],
+		sPath[PLATFORM_MAX_PATH],
+		sBaseConfig[PLATFORM_MAX_PATH];
+		// sMap[64],
+		// sMapConfig[PLATFORM_MAX_PATH];
+		
+	convar_ConfigPath.GetString(sConfigPath, sizeof(sConfigPath));
 	BuildPath(Path_SM, sPath, sizeof(sPath), sConfigPath);
-	
-	char sBaseConfig[PLATFORM_MAX_PATH];
-	FormatEx(sBaseConfig, sizeof(sBaseConfig), "%s/regexfilters.cfg", sPath);
+	FormatEx(sBaseConfig, sizeof(sBaseConfig), "%sregexfilters.cfg", sPath); 
 	LoadExpressions(sBaseConfig);
-	
-	char sMap[64];
-	GetCurrentMap(sMap, sizeof(sMap));
-	
-	char sMapConfig[PLATFORM_MAX_PATH];
-	FormatEx(sBaseConfig, sizeof(sBaseConfig), "%s/maps/regexfilters_%s.cfg", sPath, sMap);
-	LoadExpressions(sMapConfig);
+	// GetCurrentMap(sMap, sizeof(sMap));
+	// FormatEx(sBaseConfig, sizeof(sBaseConfig), "%smaps/regexfilters_%s.cfg", sPath, sMap);
+	// LoadExpressions(sMapConfig);
 	
 	CreateTimer(2.0, Timer_DelayLate, _, TIMER_FLAG_NO_MAPCHANGE);
 }
@@ -138,7 +141,6 @@ public Action Event_PlayerConnect(Event event, const char[] name, bool dontBroad
 public Action UserMessageHook(UserMsg msg_hd, BfRead bf, const int[] players, int playersNum, bool reliable, bool init){
     char sMessage[96];
     BfReadString(bf, sMessage, sizeof(sMessage));
-    BfReadString(bf, sMessage, sizeof(sMessage));
     if (StrContains(sMessage, "Name_Change") != -1){
 	for (int i = 1; i <= MaxClients; i++)
 	    if (IsClientInGame(i))
@@ -147,11 +149,11 @@ public Action UserMessageHook(UserMsg msg_hd, BfRead bf, const int[] players, in
     return Plugin_Continue;
 }
 public void OnClientAuthorized(int client, const char[] auth){
-	if (!GetConVarBool(convar_Status))
+	if (!convar_Status.BoolValue)
 		return;
 	g_hTrie_Limits[client] = CreateTrie();
 	g_bChanged[client] = false;
-	if (GetConVarBool(convar_CheckNames)){
+	if (convar_CheckNames.BoolValue){
 		char sName[MAX_NAME_LENGTH];
 		GetClientName(client, sName, sizeof(sName));
 		strcopy(original_name[client], MAX_NAME_LENGTH, sName);
@@ -159,7 +161,7 @@ public void OnClientAuthorized(int client, const char[] auth){
 		CheckClientName(client, sName);
 	}
 
-	char clientname[32];
+	char clientname[MAX_NAME_LENGTH];
 	GetClientName(client, clientname, sizeof(clientname));
 	PrintToChatAll("%s connected", clientname);
 }
@@ -169,7 +171,7 @@ public void OnClientDisconnect(int client){
 }
 
 public Action OnClientSayCommand(int client, const char[] command, const char[] sArgs){
-	if (!GetConVarBool(convar_Status) || !GetConVarBool(convar_CheckChat))
+	if (!convar_Status.BoolValue || !convar_CheckChat.BoolValue)
 		return Plugin_Continue;
 	
 	char sMessage[255];
@@ -178,15 +180,14 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 	if (strlen(sMessage) == 0)
 		return Plugin_Continue;
 	
-	int begin;
-	int end = GetArraySize(g_hArray_Regex_Chat);
+	int
+		begin,
+		end = GetArraySize(g_hArray_Regex_Chat);
 	RegexError errorcode = REGEX_ERROR_NONE;
 	bool changed;
-	
 	Handle save[2];
 	Regex regex;
 	StringMap currentsection;
-	
 	any value;
 	char sValue[256];
 	
@@ -237,7 +238,7 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 			}
 			
 			if (GetTrieValue(currentsection, "block", value) && view_as<bool>(value)){
-				char sName[32];
+				char sName[MAX_NAME_LENGTH];
 				GetClientName(client, sName, sizeof(sName));
 				if (StrContains(sName, "`") != -1)
 					ReplaceString(sName, sizeof(sName), "`", "´");				
@@ -245,8 +246,8 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 					ReplaceString(sMessage, sizeof(sMessage), "`", "´");			
 				if (StrContains(sMessage, ";") != -1)
 					ReplaceString(sMessage, sizeof(sMessage), ";", ":");
-				if (GetConVarBool(convar_IRC_Enabled))
-					ServerCommand("irc_send PRIVMSG #%s :%s: `%s`", sIRC_Filtered, sName, sMessage);
+				if (convar_IRC_Enabled.BoolValue)
+					ServerCommand("irc_send PRIVMSG #%s :%s: `%s`", "ecj-messages", sName, sMessage);
 				return Plugin_Handled;
 			}
 			
@@ -256,9 +257,9 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 				
 				DataPack pack = GetArrayCell(value, random);
 				
-				ResetPack(pack);
+				pack.Reset();
 				Regex regex2 = ReadPackCell(pack);
-				ReadPackString(pack, sValue, sizeof(sValue));
+				pack.ReadString(sValue, sizeof(sValue));
 				
 				if (regex2 == null)
 					regex2 = regex;
@@ -298,11 +299,11 @@ public Action Event_OnChangeName(Event event, const char[] name, bool dontBroadc
 	event.BroadcastDisabled = true;
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
-	if (!GetConVarBool(convar_Status) || !GetConVarBool(convar_CheckNames) || !IsPlayerIndex(client) || !IsClientConnected(client) || !IsClientInGame(client))
+	if (!convar_Status.BoolValue || !convar_CheckNames.BoolValue|| !IsPlayerIndex(client) || !IsClientConnected(client) || !IsClientInGame(client))
 		return Plugin_Continue;
 
 	char sNewName[MAX_NAME_LENGTH];
-	GetEventString(event, "newname", sNewName, sizeof(sNewName));
+	event.GetString("newname", sNewName, sizeof(sNewName));
 	if(!g_bChanged[client])
 		strcopy(original_name[client],MAX_NAME_LENGTH, sNewName);
 	CheckClientName(client, sNewName);
@@ -310,15 +311,14 @@ public Action Event_OnChangeName(Event event, const char[] name, bool dontBroadc
 	return Plugin_Handled;
 }
 Action CheckClientName(int client, char[] new_name){
-	int begin;
-	int end = GetArraySize(g_hArray_Regex_Names);
+	int
+		begin,
+		end = GetArraySize(g_hArray_Regex_Names);
 	RegexError errorcode = REGEX_ERROR_NONE;
 	bool changed;
-	
 	Handle save[2];
 	Regex regex;
 	StringMap currentsection;
-	
 	any value;
 	char sValue[256];
 	
@@ -326,8 +326,10 @@ Action CheckClientName(int client, char[] new_name){
 		GetArrayArray(g_hArray_Regex_Names, begin, save, sizeof(save));
 		regex = view_as<Regex>(save[0]);
 		currentsection = view_as<StringMap>(save[1]);
-		if (StrEqual(new_name, ""))
+		if (StrEqual(new_name, "")) {
+			begin = end;
 			break;
+		}
 		value = MatchRegex(regex, new_name, errorcode);
 
 		if (value > 0 && errorcode == REGEX_ERROR_NONE){
@@ -400,7 +402,7 @@ Action CheckClientName(int client, char[] new_name){
 							ReplaceString(new_name, MAX_NAME_LENGTH, sArray[a], "");
 						else
 							ReplaceString(new_name, MAX_NAME_LENGTH, sArray[a], sValue);
-					}	
+					}
 					begin = 0;
 				}
 			}
@@ -409,67 +411,67 @@ Action CheckClientName(int client, char[] new_name){
 	}
 
 	if (changed){
-		TerminateNameUTF8(new_name);
+		// TerminateNameUTF8(new_name);
 		if (StrEqual(new_name, "", false)){
 			char sPrefix[MAX_NAME_LENGTH];
 			char RandomNameArray[][] = {
 				"Steve","John","James", "Robert","David","Mike","Daniel","Kevin","Ryan","Gary",
 				"Larry","Frank","Jerry","Greg","Doug","Carl","Gerald","Billy","Bobby","Brooke","Bort"
 				};
-			int randomnum = GetRandomInt(0, sizeof(RandomNameArray[]) - 1);
-			GetConVarString(convar_UnnamedPrefix, sPrefix, sizeof(sPrefix));
+			int randomnum = GetRandomInt(0, sizeof(RandomNameArray) - 1);
+			convar_UnnamedPrefix.GetString(sPrefix, sizeof(sPrefix));
 			FormatEx(new_name, MAX_NAME_LENGTH, "%s%s", sPrefix, RandomNameArray[randomnum]);
 		}
-		SetClientName(client, new_name);
 		if (StrContains(original_name[client], "`") != -1)
 			ReplaceString(original_name[client], MAX_NAME_LENGTH, "`", "´");
 		if (StrContains(original_name[client], ";") != -1)
 			ReplaceString(original_name[client], MAX_NAME_LENGTH, ";", ":");
 		if (StrContains(new_name, "`") != -1)
 			ReplaceString(new_name, MAX_NAME_LENGTH, "`", "´");
-		if (GetConVarBool(convar_IRC_Enabled))
-			ServerCommand("irc_send PRIVMSG #%s :`%s`  -->  `%s`", sIRC_Filtered, original_name[client], new_name);
+		SetClientName(client, new_name);
+		if (convar_IRC_Enabled.BoolValue)
+			ServerCommand("irc_send PRIVMSG #%s :`%s`  -->  `%s`", "ecj-names", original_name[client], new_name);
 		GetClientName(client, old_name[client], MAX_NAME_LENGTH);
+		changed = false;
 		return Plugin_Handled;
 	}
-	else {
-		if (IsClientInGame(client)) {
-			if (StrEqual(old_name[client], new_name))
-				return Plugin_Continue;
-			if (GetConVarBool(convar_IRC_Enabled))
-				ServerCommand("irc_send PRIVMSG #%s :%s changed name to %s", sIRC_Main, old_name[client], new_name);
-			if (view_as<TFTeam>(GetClientTeam(client)) == TFTeam_Red)
-				CPrintToChatAll("* {red}%s{default} changed name to {red}%s{default}", old_name[client], new_name);
-			else if (view_as<TFTeam>(GetClientTeam(client)) == TFTeam_Blue)
-				CPrintToChatAll("* {blue}%s{default} changed name to {blue}%s{default}", old_name[client], new_name);
-			else if (view_as<TFTeam>(GetClientTeam(client)) == TFTeam_Spectator)
-				CPrintToChatAll("* %s changed name to %s", old_name[client], new_name);
-		}
+
+	if (IsClientInGame(client)) {
+		if (StrEqual(old_name[client], new_name))
+			return Plugin_Continue;
+		if (convar_IRC_Enabled.BoolValue)
+			ServerCommand("irc_send PRIVMSG #%s :%s changed name to %s", sIRC_Main, old_name[client], new_name);
+		if (view_as<TFTeam>(GetClientTeam(client)) == TFTeam_Red)
+			CPrintToChatAll("* {red}%s{default} changed name to {red}%s{default}", old_name[client], new_name);
+		else if (view_as<TFTeam>(GetClientTeam(client)) == TFTeam_Blue)
+			CPrintToChatAll("* {blue}%s{default} changed name to {blue}%s{default}", old_name[client], new_name);
+		else if (view_as<TFTeam>(GetClientTeam(client)) == TFTeam_Spectator)
+			CPrintToChatAll("* %s changed name to %s", old_name[client], new_name);
 	}
+
 	strcopy(old_name[client], MAX_NAME_LENGTH, new_name);
-	changed = false;
 	g_bChanged[client] = false;
 	return Plugin_Handled;
 }
 
 // ensures that utf8 names are properly terminated
-void TerminateNameUTF8(char[] name) { 
-	int len = strlen(name); 
+// void TerminateNameUTF8(char[] name) { 
+	// int len = strlen(name); 
 	
-	for (int i = 0; i < len; i++){
-		int bytes = IsCharMB(name[i]);
-		if (bytes > 1){
-			if (len - i < bytes){
-				name[i] = '\0';
-				return;
-			}
-			i += bytes - 1;
-		}
-	}
-}
+	// for (int i = 0; i < len; i++){
+		// int bytes = IsCharMB(name[i]);
+		// if (bytes > 1){
+			// if (len - i < bytes){
+				// name[i] = '\0';
+				// return;
+			// }
+			// i += bytes - 1;
+		// }
+	// }
+// }
 
 public Action OnClientCommand(int client, int args){
-	if (!GetConVarBool(convar_Status) || !GetConVarBool(convar_CheckCommands))
+	if (!convar_Status.BoolValue || !convar_CheckCommands.BoolValue)
 		return Plugin_Continue;
 	
 	char sCommand[255];
@@ -478,15 +480,14 @@ public Action OnClientCommand(int client, int args){
 	if (strlen(sCommand) == 0)
 		return Plugin_Continue;
 	
-	int begin;
-	int end = GetArraySize(g_hArray_Regex_Commands);
+	int
+		begin,
+		end = GetArraySize(g_hArray_Regex_Commands);
 	RegexError errorcode = REGEX_ERROR_NONE;
 	bool changed;
-	
 	Handle save[2];
 	Regex regex;
 	StringMap currentsection;
-	
 	any value;
 	char sValue[256];
 	
@@ -546,7 +547,7 @@ public Action OnClientCommand(int client, int args){
 				
 				DataPack pack = GetArrayCell(value, random);
 				
-				ResetPack(pack);
+				pack.Reset();
 				Regex regex2 = ReadPackCell(pack);
 				ReadPackString(pack, sValue, sizeof(sValue));
 				
@@ -605,49 +606,45 @@ void ParseAndExecute(int client, char[] command, int size) {
 }
 
 void LoadExpressions(const char[] file){
-	KeyValues kv = CreateKeyValues("RegexFilters");
-	
+	KeyValues kv = new KeyValues("RegexFilters");
+	char sPath[256];
 	if (FileExists(file)){
-		FileToKeyValues(kv, file);
-		// KeyValuesToFile(kv, file);
+		kv.ImportFromFile(file);
 	}
-	
-	if (KvGotoFirstSubKey(kv)){
+	if (kv.GotoFirstSubKey()){
 		do{
 			char sName[128];
-			KvGetSectionName(kv, sName, sizeof(sName));
-			
-			StringMap currentsection = CreateTrie();
-			SetTrieString(currentsection, "name", sName);
+			kv.GetSectionName(sName, sizeof(sName));
+			StringMap currentsection = new StringMap();
+			currentsection.SetString("name", sName);
 			
 			ParseSectionValues(kv, currentsection);
 		}
-		while (KvGotoNextKey(kv));
+		while (kv.GotoNextKey());
 	}
-	
 	delete kv;
 }
 
 void ParseSectionValues(KeyValues kv, StringMap currentsection){
-	if (!KvGotoFirstSubKey(kv, false))
+	if (!kv.GotoFirstSubKey(false))
 		return;
 	
 	do{
 		char sKey[128];
-		KvGetSectionName(kv, sKey, sizeof(sKey));
+		kv.GetSectionName(sKey, sizeof(sKey));
 		
 		char sValue[128];
 		
 		if (StrEqual(sKey, "chatpattern")){
-			KvGetString(kv, NULL_STRING, sValue, sizeof(sValue));
+			kv.GetString(NULL_STRING, sValue, sizeof(sValue));
 			RegisterExpression(sValue, currentsection, g_hArray_Regex_Chat);
 		}
 		else if (StrEqual(sKey, "cmdpattern") || StrEqual(sKey, "commandkeyword")){
-			KvGetString(kv, NULL_STRING, sValue, sizeof(sValue));
+			kv.GetString(NULL_STRING, sValue, sizeof(sValue));
 			RegisterExpression(sValue, currentsection, g_hArray_Regex_Commands);
 		}
 		else if (StrEqual(sKey, "namepattern")){
-			KvGetString(kv, NULL_STRING, sValue, sizeof(sValue));
+			kv.GetString(NULL_STRING, sValue, sizeof(sValue));
 			RegisterExpression(sValue, currentsection, g_hArray_Regex_Names);
 		}
 		else if (StrEqual(sKey, "replace")){
@@ -657,7 +654,7 @@ void ParseSectionValues(KeyValues kv, StringMap currentsection){
 				SetTrieValue(currentsection, "replace", value);
 			}
 			
-			KvGetString(kv, NULL_STRING, sValue, sizeof(sValue));
+			kv.GetString(NULL_STRING, sValue, sizeof(sValue));
 			AddReplacement(sValue, value);
 		}
 		else if (StrEqual(sKey, "replacepattern")){
@@ -667,7 +664,7 @@ void ParseSectionValues(KeyValues kv, StringMap currentsection){
 				SetTrieValue(currentsection, "replace", value);
 			}
 			
-			KvGetString(kv, NULL_STRING, sValue, sizeof(sValue));
+			kv.GetString(NULL_STRING, sValue, sizeof(sValue));
 			AddPatternReplacement(sValue, value);
 		}
 		else if (StrEqual(sKey, "block"))
@@ -692,7 +689,7 @@ void ParseSectionValues(KeyValues kv, StringMap currentsection){
 			SetTrieValue(currentsection, sKey, ReadFlagString(sValue));
 		}
 	}
-	while (KvGotoNextKey(kv, false));
+	while (kv.GotoNextKey(false));
 	
 	KvGoBack(kv);
 }
@@ -716,7 +713,6 @@ void RegisterExpression(const char[] key, StringMap currentsection, ArrayList da
 	Handle save[2];
 	save[0] = view_as<Handle>(regex);
 	save[1] = view_as<Handle>(currentsection);
-	
 	PushArrayArray(data, save, sizeof(save));
 }
 
@@ -758,8 +754,8 @@ int ParseExpression(const char[] key, char[] expression, int size){
 }
 
 int FindRegexFlags(const char[] flags){
-	char sBuffer[7][16];
-	ExplodeString(flags, "|", sBuffer, 7, 16);
+	char sBuffer[7][32];
+	ExplodeString(flags, "|", sBuffer, 7, 32);
 	
 	int new_flags;
 	for (int i = 0; i < 7; i++){
@@ -786,9 +782,9 @@ int FindRegexFlags(const char[] flags){
 }
 
 void AddReplacement(const char[] value, ArrayList data){
-	DataPack pack = CreateDataPack();
-	WritePackCell(pack, view_as<Handle>(null));
-	WritePackString(pack, value);
+	DataPack pack = new DataPack();
+	pack.WriteCell(view_as<Handle>(null));
+	pack.WriteString(value);
 	
 	PushArrayCell(data, pack);
 }
@@ -809,9 +805,9 @@ void AddPatternReplacement(const char[] value, ArrayList data){
 		return;
 	}
 	
-	DataPack pack = CreateDataPack();
-	WritePackCell(pack, regex);
-	WritePackString(pack, "");
+	DataPack pack = new DataPack();
+	pack.WriteCell(regex);
+	pack.WriteString("");
 	
 	PushArrayCell(data, pack);
 }
