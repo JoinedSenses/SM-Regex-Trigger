@@ -607,7 +607,6 @@ void ParseAndExecute(int client, char[] command, int size) {
 
 void LoadExpressions(const char[] file){
 	KeyValues kv = new KeyValues("RegexFilters");
-	char sPath[256];
 	if (FileExists(file)){
 		kv.ImportFromFile(file);
 	}
