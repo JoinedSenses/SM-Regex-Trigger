@@ -151,9 +151,12 @@ public void OnClientAuthorized(int client, const char[] auth) {
 	}
 	g_hLimits[client] = new StringMap();
 	g_bChanged[client] = false;
-	if (cvar_CheckNames.BoolValue) {
-		GetClientName(client, original_name[client], MAX_NAME_LENGTH);
-		CheckClientName(client, original_name[client]);
+	if (cvar_CheckNames.BoolValue){
+		char sName[MAX_NAME_LENGTH];
+		GetClientName(client, sName, sizeof(sName));
+		strcopy(original_name[client], MAX_NAME_LENGTH, sName);
+
+		CheckClientName(client, sName);
 	}
 
 	char clientname[MAX_NAME_LENGTH];
