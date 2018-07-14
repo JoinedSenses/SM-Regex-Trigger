@@ -22,20 +22,22 @@ https://github.com/JoinedSenses/SourceIRC (Modified)
 
 ## ConVars
 ```
-sm_regexfilters_status "1"  // Enable/Disable plugin  
-sm_regexfilters_config_path "configs/regexfilters/" // Don't touch. Config path of filters  
-sm_regexfilters_check_chat "1" // Enable chat checking  
-sm_regexfilters_check_commands "1" // Enable command checking  
-sm_regexfilters_check_names "1" // Enable name checking  
-sm_regexfilters_prefix "" // Prefix to add to randomly generated names if a players name is unnamed  
-sm_regexfilters_irc_enabled "0" // Enable use of IRC relay  
-sm_regexfilters_irc_main "" // Public server 'connect' messages are relayed to. Dont include the #  
-sm_regexfilters_irc_filtered "" // Hidden channel for filtered message and name relay. Don't include the #  
+sm_regex_status "1"  // Enable/Disable plugin  
+sm_regex_config_path "configs/regexfilters/" // Don't touch. Config path of filters  
+sm_regex_check_chat "1" // Enable chat checking  
+sm_regex_check_commands "1" // Enable command checking  
+sm_regex_check_names "1" // Enable name checking  
+sm_regex_prefix "" // Prefix to add to randomly generated names if a players name is unnamed  
+sm_regex_irc_enabled "0" // Enable use of IRC relay  
+sm_regex_irc_main "" // Public server 'connect' messages are relayed to. Dont include the #  
+sm_regex_irc_messages "" // Channel for filtered messages. Don't include the #  
+sm_regex_irc_names "" // Channel for filtered names. Don't include the #   
 ```
 ## Installation  
  * Install regexfiltering.smx into your plugins folder.  
  * Either install the included config to addons/sourcemod/configs/regexfilters/  
-  or create your own at that location.  
+  or create your own at that location.
+ * Once the plugin has been loaded, it can be configured at cfg/sourcemod/plugin.regexfilters.txt  
 
 **Discord formatting of filtered channel:**  
 ![alt text](https://i.imgur.com/WhD5wUh.png)

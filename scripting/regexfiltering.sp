@@ -141,7 +141,7 @@ public Action UserMessageHook(UserMsg msg_hd, BfRead bf, const int[] players, in
 	bf.ReadString(sMessage, sizeof(sMessage));
 	bf.ReadString(sMessage, sizeof(sMessage));
 	if (StrContains(sMessage, "Name_Change") != -1) {
-			return Plugin_Handled;
+		return Plugin_Handled;
 	}
 	return Plugin_Continue;
 }
@@ -310,7 +310,7 @@ public Action Event_OnChangeName(Event event, const char[] name, bool dontBroadc
 	char sNewName[MAX_NAME_LENGTH];
 	event.GetString("newname", sNewName, sizeof(sNewName));
 	
-	if(!g_bChanged[client]) {
+	if (!g_bChanged[client]) {
 		strcopy(original_name[client],MAX_NAME_LENGTH, sNewName);
 	}
 	
