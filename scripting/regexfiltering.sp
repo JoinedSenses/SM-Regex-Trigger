@@ -29,8 +29,8 @@ bool
 	g_bLate
 	, g_bChanged[MAXPLAYERS+1];
 char
-	old_name[MAXPLAYERS+1]
-	, original_name[MAXPLAYERS+1];
+	old_name[MAXPLAYERS+1][MAX_NAME_LENGTH]
+	, original_name[MAXPLAYERS+1][MAX_NAME_LENGTH];
 ArrayList
 	g_hArray_Regex_Chat
 	, g_hArray_Regex_Commands
@@ -448,7 +448,6 @@ Action CheckClientName(int client, char[] new_name) {
 		if (cvar_IRC_Enabled.BoolValue) {
 			ServerCommand("irc_send PRIVMSG #%s :`%s`  -->  `%s`", sIRC_FilteredNames, original_name[client], new_name);
 		}
-		GetClientName(client, old_name[client], MAX_NAME_LENGTH);
 		changed = false;
 		return Plugin_Handled;
 	}
