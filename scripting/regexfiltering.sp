@@ -2,7 +2,7 @@
 #pragma newdecls required
 
 #define PLUGIN_DESCRIPTION "Regex filtering for names, chat and commands."
-#define PLUGIN_VERSION "2.3.0"
+#define PLUGIN_VERSION "2.4.0"
 #define MAX_EXPRESSION_LENGTH 256
 
 #include <sourcemod>
@@ -12,33 +12,57 @@
 #include <morecolors>
 
 ConVar
-	cvar_Status
-	, cvar_ConfigPath
-	, cvar_CheckChat
-	, cvar_CheckCommands
-	, cvar_CheckNames
-	, cvar_UnnamedPrefix
-	, cvar_IRC_Enabled
-	, cvar_IRCMain
-	, cvar_IRCFilteredMessages
-	, cvar_IRCFilteredNames;
+	  g_cvarStatus
+	, g_cvarConfigPath
+	, g_cvarCheckChat
+	, g_cvarCheckCommands
+	, g_cvarCheckNames
+	, g_cvarUnnamedPrefix
+	, g_cvarIRC_Enabled
+	, g_cvarIRCMain
+	, g_cvarIRCFilteredMessages
+	, g_cvarIRCFilteredNames;
 char
-	sIRC_Main[32]
-	, sIRC_FilteredMessages[32]
-	, sIRC_FilteredNames[32];
+	  g_sIRC_Main[32]
+	, g_sIRC_FilteredMessages[32]
+	, g_sIRC_FilteredNames[32]
+	, g_sOldName[MAXPLAYERS+1][MAX_NAME_LENGTH]
+	, g_sUnfilteredName[MAXPLAYERS+1][MAX_NAME_LENGTH]
+	, g_sPrefix[MAX_NAME_LENGTH];
 bool
-	g_bLate
+	  g_bLate
 	, g_bChanged[MAXPLAYERS+1]
-	, checking[MAXPLAYERS+1];
-char
-	old_name[MAXPLAYERS+1][MAX_NAME_LENGTH]
-	, original_name[MAXPLAYERS+1][MAX_NAME_LENGTH];
+	, g_bChecking[MAXPLAYERS+1];
 ArrayList
-	g_hArray_Regex_Chat
+	  g_hArray_Regex_Chat
 	, g_hArray_Regex_Commands
 	, g_hArray_Regex_Names;
 StringMap
-	g_hLimits[MAXPLAYERS+1];
+	  g_hLimits[MAXPLAYERS+1];
+
+char g_sRandomNames[][] = {
+	  "Steve"
+	, "John"
+	, "James"
+	, "Robert"
+	, "David"
+	, "Mike"
+	, "Daniel"
+	, "Kevin"
+	, "Ryan"
+	, "Gary"
+	, "Larry"
+	, "Frank"
+	, "Jerry"
+	, "Greg"
+	, "Doug"
+	, "Carl"
+	, "Gerald"
+	, "Billy"
+	, "Bobby"
+	, "Brooke"
+	, "Bort"
+};
 
 public Plugin myinfo = {
 	name = "Regex Filters", 
@@ -55,76 +79,83 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public void OnPluginStart() {
 	CreateConVar("sm_regexfilters_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_NOTIFY | FCVAR_DONTRECORD | FCVAR_SPONLY);
-	cvar_Status = CreateConVar("sm_regex_status", "1", "Status of the plugin.\n(1 = on, 0 = off)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	cvar_ConfigPath = CreateConVar("sm_regex_config_path", "configs/regexfilters/", "Location to store the regex filters at.", FCVAR_NOTIFY);
-	cvar_CheckChat = CreateConVar("sm_regex_check_chat", "1", "Filter out and check chat messages.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	cvar_CheckCommands = CreateConVar("sm_regex_check_commands", "1", "Filter out and check commands.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	cvar_CheckNames = CreateConVar("sm_regex_check_names", "1", "Filter out and check names.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	cvar_UnnamedPrefix = CreateConVar("sm_regex_prefix", "", "Prefix for random name when player has become unnamed");
-	cvar_IRC_Enabled = CreateConVar("sm_regex_irc_enabled", "0", "Enable IRC relay from SourceIRC", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	cvar_IRCMain =  CreateConVar("sm_regex_irc_main", "", "Main channel for connect message relay", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	cvar_IRCFilteredMessages =  CreateConVar("sm_regex_irc_messages", "", "Channel for filtered messages", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	cvar_IRCFilteredNames =  CreateConVar("sm_regex_irc_names", "", "Channel for filtered names", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarStatus = CreateConVar("sm_regex_status", "1", "Status of the plugin.\n(1 = on, 0 = off)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarConfigPath = CreateConVar("sm_regex_config_path", "configs/regexfilters/", "Location to store the regex filters at.", FCVAR_NOTIFY);
+	g_cvarCheckChat = CreateConVar("sm_regex_check_chat", "1", "Filter out and check chat messages.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarCheckCommands = CreateConVar("sm_regex_check_commands", "1", "Filter out and check commands.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarCheckNames = CreateConVar("sm_regex_check_names", "1", "Filter out and check names.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarUnnamedPrefix = CreateConVar("sm_regex_prefix", "", "Prefix for random name when player has become unnamed");
+	g_cvarIRC_Enabled = CreateConVar("sm_regex_irc_enabled", "0", "Enable IRC relay from SourceIRC", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarIRCMain = CreateConVar("sm_regex_irc_main", "", "Main channel for connect message relay", FCVAR_NOTIFY);
+	g_cvarIRCFilteredMessages = CreateConVar("sm_regex_irc_messages", "", "Channel for filtered messages", FCVAR_NOTIFY);
+	g_cvarIRCFilteredNames = CreateConVar("sm_regex_irc_names", "", "Channel for filtered names", FCVAR_NOTIFY);
 
 	HookUserMessage(GetUserMessageId("SayText2"), UserMessageHook, true);
+
 	
-	g_hArray_Regex_Chat = new ArrayList(2);
-	g_hArray_Regex_Commands = new ArrayList(2);
-	g_hArray_Regex_Names = new ArrayList(2);
+	g_hArray_Regex_Chat = new ArrayList(3);
+	g_hArray_Regex_Commands = new ArrayList(3);
+	g_hArray_Regex_Names = new ArrayList(3);
 	
 	HookEvent("player_connect_client", Event_PlayerConnect, EventHookMode_Pre);
 	HookEvent("player_changename", Event_OnChangeName, EventHookMode_Pre);
 	//RegAdminCmd("sm_testname", Command_TestName, ADMFLAG_ROOT);
 	
 	AutoExecConfig();
-}
 
-//public Action Command_TestName(int client, int args)
-//{
-//	char sName[MAX_NAME_LENGTH];
-//	GetCmdArgString(sName, sizeof(sName));
-//	
-//	Action value = CheckClientName(client, null, sName);
-//	PrintToChat(client, "action value: %i", value);
-//	return Plugin_Handled;
-//}
+	g_cvarUnnamedPrefix.AddChangeHook(convarChanged);
 
-public void OnConfigsExecuted() {
-	if (!cvar_Status.BoolValue) {
-		return;
-	}
-	
-	cvar_IRCMain.GetString(sIRC_Main, sizeof(sIRC_Main));
-	cvar_IRCFilteredMessages.GetString(sIRC_FilteredMessages, sizeof(sIRC_FilteredMessages));
-	cvar_IRCFilteredNames.GetString(sIRC_FilteredNames, sizeof(sIRC_FilteredNames));
-	
-	char
-		sConfigPath[PLATFORM_MAX_PATH]
-		, sPath[PLATFORM_MAX_PATH]
-		, sBaseConfig[PLATFORM_MAX_PATH];
-		
-	cvar_ConfigPath.GetString(sConfigPath, sizeof(sConfigPath));
-	BuildPath(Path_SM, sPath, sizeof(sPath), sConfigPath);
-	FormatEx(sBaseConfig, sizeof(sBaseConfig), "%sregexfilters.cfg", sPath);
-	LoadExpressions(sBaseConfig);
-	
-	// char sMap[64];
-	// GetCurrentMap(sMap, sizeof(sMap));
-	
-	// char sMapConfig[PLATFORM_MAX_PATH];
-	// FormatEx(sBaseConfig, sizeof(sBaseConfig), "%s/maps/regexfilters_%s.cfg", sPath, sMap);
-	// LoadExpressions(sMapConfig);
-	
-	CreateTimer(2.0, Timer_DelayLate, _, TIMER_FLAG_NO_MAPCHANGE);
-}
+	CreateTimer(5.0, TimerLoadExpressions);
 
-public Action Timer_DelayLate(Handle timer) {
 	if (g_bLate) {
 		if (g_hLimits[0] == null) {
 			g_hLimits[0] = new StringMap();
 		}
 		g_bLate = false;
+
+		for (int i = 1; i <= MaxClients; i++) {
+			if (isValidClient(i)) {
+				Format(g_sOldName[i], sizeof(g_sOldName[]), "%N", i);
+			}
+		}
 	}
+	g_cvarUnnamedPrefix.GetString(g_sPrefix, sizeof(g_sPrefix));
+}
+
+bool isValidClient(int client) {
+	return (0 < client <= MaxClients && IsClientConnected(client) && !IsFakeClient(client));
+}
+
+void convarChanged(ConVar convar, const char[] oldValue, const char[] newValue) {
+	g_cvarUnnamedPrefix.AddChangeHook(convarChanged);
+}
+
+//public Action Command_TestName(int client, int args) {
+//	char sName[MAX_NAME_LENGTH];
+//	GetCmdArgString(sName, sizeof(sName));
+	
+//	Action value = CheckClientName(client, sName);
+//	PrintToChat(client, "action value: %i", value);
+//	return Plugin_Handled;
+//}
+
+public Action TimerLoadExpressions(Handle timer) {
+	if (!g_cvarStatus.BoolValue) {
+		return;
+	}
+	
+	g_cvarIRCMain.GetString(g_sIRC_Main, sizeof(g_sIRC_Main));
+	g_cvarIRCFilteredMessages.GetString(g_sIRC_FilteredMessages, sizeof(g_sIRC_FilteredMessages));
+	g_cvarIRCFilteredNames.GetString(g_sIRC_FilteredNames, sizeof(g_sIRC_FilteredNames));
+	
+	char sConfigPath[PLATFORM_MAX_PATH];
+	char sPath[PLATFORM_MAX_PATH];
+	char sBaseConfig[PLATFORM_MAX_PATH];
+		
+	g_cvarConfigPath.GetString(sConfigPath, sizeof(sConfigPath));
+	BuildPath(Path_SM, sPath, sizeof(sPath), sConfigPath);
+	FormatEx(sBaseConfig, sizeof(sBaseConfig), "%sregexfilters.cfg", sPath);
+	LoadExpressions(sBaseConfig);
 }
 
 public void OnMapStart() {
@@ -134,40 +165,21 @@ public void OnMapStart() {
 public void OnMapEnd() {
 	delete g_hLimits[0];
 }
-public Action Event_PlayerConnect(Event event, const char[] name, bool dontBroadcast) {
-	event.BroadcastDisabled = true;
-	return Plugin_Continue;
-}
-public Action UserMessageHook(UserMsg msg_hd, BfRead bf, const int[] players, int playersNum, bool reliable, bool init) {
-	char sMessage[96];
-	bf.ReadString(sMessage, sizeof(sMessage));
-	bf.ReadString(sMessage, sizeof(sMessage));
-	if (StrContains(sMessage, "Name_Change") != -1) {
-		return Plugin_Handled;
-	}
-	return Plugin_Continue;
-}
+
 public void OnClientAuthorized(int client, const char[] auth) {
-	if (!cvar_Status.BoolValue) {
+	if (!g_cvarStatus.BoolValue) {
 		return;
 	}
 	g_hLimits[client] = new StringMap();
-	if (cvar_CheckNames.BoolValue){
+	if (g_cvarCheckNames.BoolValue){
 		char sName[MAX_NAME_LENGTH];
 		GetClientName(client, sName, sizeof(sName));
-		strcopy(original_name[client], MAX_NAME_LENGTH, sName);
+		strcopy(g_sUnfilteredName[client], MAX_NAME_LENGTH, sName);
 		
 		CheckClientName(client, sName);
 	}
-	GetClientName(client, old_name[client], MAX_NAME_LENGTH);
-	PrintToChatAll("%s connected", old_name[client]);
-
-	if (g_bChanged[client]) {
-		if (cvar_IRC_Enabled.BoolValue) {
-			ServerCommand("irc_send PRIVMSG #%s :`%s`  -->  `%s`", sIRC_FilteredNames, original_name[client], old_name[client]);
-		}
-		g_bChanged[client] = false;
-	}
+	GetClientName(client, g_sOldName[client], MAX_NAME_LENGTH);
+	PrintToChatAll("%s connected", g_sOldName[client]);
 }
 
 public void OnClientDisconnect(int client) {
@@ -176,7 +188,7 @@ public void OnClientDisconnect(int client) {
 }
 
 public Action OnClientSayCommand(int client, const char[] command, const char[] sArgs) {
-	if (!cvar_Status.BoolValue || !cvar_CheckChat.BoolValue) {
+	if (!g_cvarStatus.BoolValue || !g_cvarCheckChat.BoolValue) {
 		return Plugin_Continue;
 	}
 	
@@ -255,8 +267,8 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 				if (StrContains(sMessage, ";") != -1) {
 					ReplaceString(sMessage, sizeof(sMessage), ";", ":");
 				}
-				if (cvar_IRC_Enabled.BoolValue) {
-					ServerCommand("irc_send PRIVMSG #%s :%s: `%s`", sIRC_FilteredMessages, sName, sMessage);
+				if (g_cvarIRC_Enabled.BoolValue) {
+					ServerCommand("irc_send PRIVMSG #%s :%s: `%s`", g_sIRC_FilteredMessages, sName, sMessage);
 				}
 				return Plugin_Handled;
 			}
@@ -311,23 +323,24 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 
 public Action Event_OnChangeName(Event event, const char[] name, bool dontBroadcast) {
 	int client = GetClientOfUserId(event.GetInt("userid"));
-	if (!cvar_Status.BoolValue || !cvar_CheckNames.BoolValue) {
+	if (!g_cvarStatus.BoolValue || !g_cvarCheckNames.BoolValue) {
 		return Plugin_Handled;
 	}
 	char sNewName[MAX_NAME_LENGTH];
 	event.GetString("newname", sNewName, sizeof(sNewName));
 	
 	if (!g_bChanged[client]) {
-		strcopy(original_name[client],MAX_NAME_LENGTH, sNewName);
-		checking[client] = false;
+		strcopy(g_sUnfilteredName[client],MAX_NAME_LENGTH, sNewName);
+		g_bChecking[client] = false;
 	}
-	if (!checking[client]) {
+	if (!g_bChecking[client]) {
 		CheckClientName(client, sNewName);
 	}
 	return Plugin_Handled;
 }
+
 Action CheckClientName(int client, char[] new_name) {
-	checking[client] = true;
+	g_bChecking[client] = true;
 	int begin;
 	int end = g_hArray_Regex_Names.Length;
 	RegexError errorcode = REGEX_ERROR_NONE;
@@ -431,57 +444,52 @@ Action CheckClientName(int client, char[] new_name) {
 	if (changed) {
 		// TerminateNameUTF8(new_name);
 		if (strlen(new_name)==0) {
-			char sPrefix[MAX_NAME_LENGTH];
-			char RandomNameArray[][] = {
-				"Steve","John","James", "Robert","David","Mike","Daniel","Kevin","Ryan","Gary",
-				"Larry","Frank","Jerry","Greg","Doug","Carl","Gerald","Billy","Bobby","Brooke","Bort"
-				};
-			int randomnum = GetRandomInt(0, sizeof(RandomNameArray[]) - 1);
-			cvar_UnnamedPrefix.GetString(sPrefix, sizeof(sPrefix));
-			FormatEx(new_name, MAX_NAME_LENGTH, "%s%s", sPrefix, RandomNameArray[randomnum]);
+			int randomnum = GetRandomInt(0, sizeof(g_sRandomNames[])-1);
+			FormatEx(new_name, MAX_NAME_LENGTH, "%s%s", g_sPrefix, g_sRandomNames[randomnum]);
 		}
 		if (IsClientConnected(client)) {
 			SetClientName(client, new_name);
-			if (StrContains(original_name[client], "`") != -1) {
-				ReplaceString(original_name[client], MAX_NAME_LENGTH, "`", "´");
+			if (StrContains(g_sUnfilteredName[client], "`") != -1) {
+				ReplaceString(g_sUnfilteredName[client], MAX_NAME_LENGTH, "`", "´");
 			}
-			if (StrContains(original_name[client], ";") != -1) {
-				ReplaceString(original_name[client], MAX_NAME_LENGTH, ";", ":");
+			if (StrContains(g_sUnfilteredName[client], ";") != -1) {
+				ReplaceString(g_sUnfilteredName[client], MAX_NAME_LENGTH, ";", ":");
 			}
 			if (StrContains(new_name, "`") != -1) {
 				ReplaceString(new_name, MAX_NAME_LENGTH, "`", "´");
 			}
-			checking[client] = false;
+			g_bChecking[client] = false;
 			changed = false;
-			return Plugin_Handled;
-		}
-	}
-	else {
-		if (g_bChanged[client]) {
-			if (cvar_IRC_Enabled.BoolValue) {
-				ServerCommand("irc_send PRIVMSG #%s :`%s`  -->  `%s`", sIRC_FilteredNames, original_name[client], new_name);
+
+			if (g_cvarIRC_Enabled.BoolValue) {
+				ServerCommand("irc_send PRIVMSG #%s :`%s`  -->  `%s`", g_sIRC_FilteredNames, g_sUnfilteredName[client], new_name);
 			}
+
 			g_bChanged[client] = false;
 		}
-		if (IsClientInGame(client)) {
-			if (StrEqual(old_name[client], new_name)) {
-				return Plugin_Continue;
+	}
+	if (IsClientInGame(client)) {
+		if (StrEqual(g_sOldName[client], new_name)) {
+			return Plugin_Continue;
+		}
+		if (g_cvarIRC_Enabled.BoolValue) {
+			ServerCommand("irc_send PRIVMSG #%s :%s changed name to %s", g_sIRC_Main, g_sOldName[client], new_name);
+		}
+		char color[7];
+		switch (GetClientTeam(client)) {
+			case TFTeam_Red: {
+				strcopy(color, sizeof(color), "red");
 			}
-			if (cvar_IRC_Enabled.BoolValue) {
-				ServerCommand("irc_send PRIVMSG #%s :%s changed name to %s", sIRC_Main, old_name[client], new_name);
+			case TFTeam_Blue: {
+				strcopy(color, sizeof(color), "blue");
 			}
-			if (view_as<TFTeam>(GetClientTeam(client)) == TFTeam_Red) {
-				CPrintToChatAll("* {red}%s{default} changed name to {red}%s{default}", old_name[client], new_name);
-			}
-			else if (view_as<TFTeam>(GetClientTeam(client)) == TFTeam_Blue) {
-				CPrintToChatAll("* {blue}%s{default} changed name to {blue}%s{default}", old_name[client], new_name);
-			}
-			else if (view_as<TFTeam>(GetClientTeam(client)) == TFTeam_Spectator) {
-				CPrintToChatAll("* %s changed name to %s", old_name[client], new_name);
+			default: {
+				strcopy(color, sizeof(color), "default");
 			}
 		}
+		CPrintToChatAll("* {%s}%s{default} changed name to {%s}%s{default}", color, g_sOldName[client], color, new_name);
 	}
-	strcopy(old_name[client], MAX_NAME_LENGTH, new_name);
+	strcopy(g_sOldName[client], MAX_NAME_LENGTH, new_name);
 	return Plugin_Continue;
 }
 
@@ -502,8 +510,9 @@ Action CheckClientName(int client, char[] new_name) {
 // }
 
 public Action OnClientCommand(int client, int args) {
-	if (!cvar_Status.BoolValue || !cvar_CheckCommands.BoolValue)
+	if (!g_cvarStatus.BoolValue || !g_cvarCheckCommands.BoolValue) {
 		return Plugin_Continue;
+	}
 	
 	char sCommand[255];
 	GetCmdArg(0, sCommand, sizeof(sCommand));
@@ -512,7 +521,7 @@ public Action OnClientCommand(int client, int args) {
 		return Plugin_Continue;
 	}
 	
-	int begin;
+	int begin = 0;
 	int end = g_hArray_Regex_Commands.Length;
 	RegexError errorcode = REGEX_ERROR_NONE;
 	bool changed;
@@ -645,20 +654,18 @@ void LoadExpressions(const char[] file) {
 	
 	if (FileExists(file)) {
 		kv.ImportFromFile(file);
-		// KeyValuesToFile(kv, file);
 	}
 	
-	if (KvGotoFirstSubKey(kv)) {
-		do{
+	if (kv.GotoFirstSubKey()) {
+		do {
 			char sName[128];
 			kv.GetSectionName(sName, sizeof(sName));
 			
-			StringMap currentsection = new  StringMap();
+			StringMap currentsection = new StringMap();
 			currentsection.SetString("name", sName);
 			
 			ParseSectionValues(kv, currentsection);
-		}
-		while (kv.GotoNextKey());
+		} while (kv.GotoNextKey());
 	}
 	
 	delete kv;
@@ -712,15 +719,18 @@ void ParseSectionValues(KeyValues kv, StringMap currentsection) {
 		}
 		else if (StrEqual(sKey, "action")) {
 			kv.GetString(NULL_STRING, sValue, sizeof(sValue));
-			currentsection.SetString(sKey, sValue);}
+			currentsection.SetString(sKey, sValue);
+		}
 		else if (StrEqual(sKey, "warn")) {
 			kv.GetString(NULL_STRING, sValue, sizeof(sValue));
 			currentsection.SetString(sKey, sValue);
 		}
-		else if (StrEqual(sKey, "limit"))
+		else if (StrEqual(sKey, "limit")) {
 			currentsection.SetValue(sKey, KvGetNum(kv, NULL_STRING));
-		else if (StrEqual(sKey, "forgive"))
+		}
+		else if (StrEqual(sKey, "forgive")) {
 			currentsection.SetValue(sKey, KvGetNum(kv, NULL_STRING));
+		}
 		else if (StrEqual(sKey, "punish")) {
 			kv.GetString(NULL_STRING, sValue, sizeof(sValue));
 			currentsection.SetString(sKey, sValue);
@@ -729,8 +739,7 @@ void ParseSectionValues(KeyValues kv, StringMap currentsection) {
 			kv.GetString(NULL_STRING, sValue, sizeof(sValue));
 			currentsection.SetValue(sKey, ReadFlagString(sValue));
 		}
-	}
-	while (kv.GotoNextKey(false));
+	} while (kv.GotoNextKey(false));
 	
 	kv.GoBack();
 }
@@ -763,11 +772,10 @@ int ParseExpression(const char[] key, char[] expression, int size) {
 	strcopy(expression, size, key);
 	TrimString(expression);
 	
-	int
-		flags
-		, a
-		, b
-		, c;
+	int flags;
+	int a;
+	int b;
+	int c;
 	
 	if (expression[strlen(expression) - 1] == '\'') {
 		for (; expression[flags] != '\0'; flags++) {
@@ -861,4 +869,20 @@ void AddPatternReplacement(const char[] value, ArrayList data) {
 	pack.WriteCell(regex);
 	pack.WriteString("");
 	data.Push(pack);
+}
+
+// ------------------------ Message suppression
+
+public Action Event_PlayerConnect(Event event, const char[] name, bool dontBroadcast) {
+	event.BroadcastDisabled = true;
+	return Plugin_Continue;
+}
+public Action UserMessageHook(UserMsg msg_hd, BfRead bf, const int[] players, int playersNum, bool reliable, bool init) {
+	char sMessage[96];
+	bf.ReadString(sMessage, sizeof(sMessage));
+	bf.ReadString(sMessage, sizeof(sMessage));
+	if (StrContains(sMessage, "Name_Change") != -1) {
+		return Plugin_Handled;
+	}
+	return Plugin_Continue;
 }
