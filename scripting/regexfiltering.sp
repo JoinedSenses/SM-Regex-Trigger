@@ -2,7 +2,7 @@
 #pragma newdecls required
 
 #define PLUGIN_DESCRIPTION "Regex filtering for names, chat and commands."
-#define PLUGIN_VERSION "2.4.0"
+#define PLUGIN_VERSION "2.4.1"
 #define MAX_EXPRESSION_LENGTH 256
 
 #include <sourcemod>
@@ -127,7 +127,7 @@ bool isValidClient(int client) {
 }
 
 void convarChanged(ConVar convar, const char[] oldValue, const char[] newValue) {
-	g_cvarUnnamedPrefix.AddChangeHook(convarChanged);
+	g_cvarUnnamedPrefix.GetString(g_sPrefix, sizeof(g_sPrefix));
 }
 
 //public Action Command_TestName(int client, int args) {
