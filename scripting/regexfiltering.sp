@@ -2,7 +2,7 @@
 #pragma newdecls required
 
 #define PLUGIN_DESCRIPTION "Regex filtering for names, chat and commands."
-#define PLUGIN_VERSION "2.4.1"
+#define PLUGIN_VERSION "2.4.2"
 #define MAX_EXPRESSION_LENGTH 256
 
 #include <sourcemod>
@@ -32,7 +32,8 @@ char
 bool
 	  g_bLate
 	, g_bChanged[MAXPLAYERS+1]
-	, g_bChecking[MAXPLAYERS+1];
+	, g_bChecking[MAXPLAYERS+1]
+	, g_bChecked[MAXPLAYERS+1];
 ArrayList
 	  g_hArray_Regex_Chat
 	, g_hArray_Regex_Commands
@@ -58,6 +59,7 @@ char g_sRandomNames[][] = {
 	, "Doug"
 	, "Carl"
 	, "Gerald"
+	, "Goose"
 	, "Billy"
 	, "Bobby"
 	, "Brooke"
@@ -99,7 +101,8 @@ public void OnPluginStart() {
 	
 	HookEvent("player_connect_client", Event_PlayerConnect, EventHookMode_Pre);
 	HookEvent("player_changename", Event_OnChangeName, EventHookMode_Pre);
-	//RegAdminCmd("sm_testname", Command_TestName, ADMFLAG_ROOT);
+	RegAdminCmd("sm_testname", cmdTestName, ADMFLAG_ROOT);
+	RegAdminCmd("sm_recheckname", cmdRecheckName, ADMFLAG_ROOT);
 	
 	AutoExecConfig();
 
@@ -130,14 +133,27 @@ void convarChanged(ConVar convar, const char[] oldValue, const char[] newValue) 
 	g_cvarUnnamedPrefix.GetString(g_sPrefix, sizeof(g_sPrefix));
 }
 
-//public Action Command_TestName(int client, int args) {
-//	char sName[MAX_NAME_LENGTH];
-//	GetCmdArgString(sName, sizeof(sName));
-	
-//	Action value = CheckClientName(client, sName);
-//	PrintToChat(client, "action value: %i", value);
-//	return Plugin_Handled;
-//}
+public Action cmdTestName(int client, int args) {
+	char arg[MAX_MESSAGE_LENGTH];
+	GetCmdArgString(arg, sizeof(arg));
+
+	Action value = CheckClientName(client, arg);
+	ReplyToCommand(client, "action value: %i", value);
+	return Plugin_Handled;
+}
+
+public Action cmdRecheckName(int client, int args) {
+	char targetName[MAX_NAME_LENGTH];
+	GetCmdArg(1, targetName, sizeof(targetName));
+	int target = FindTarget(client, targetName);
+	if (!target) {
+		ReplyToCommand(client, "[Filter] Unable to find target");
+		return Plugin_Handled;
+	}
+	ConnectNameCheck(target);
+	ReplyToCommand(client, "[Filter] Name Check successful");
+	return Plugin_Handled;
+}
 
 public Action TimerLoadExpressions(Handle timer) {
 	if (!g_cvarStatus.BoolValue) {
@@ -164,12 +180,25 @@ public void OnMapStart() {
 
 public void OnMapEnd() {
 	delete g_hLimits[0];
+	for (int i = 1; i <= MaxClients; i++) {
+		g_sOldName[i] = "";
+	}
 }
 
-public void OnClientAuthorized(int client, const char[] auth) {
+public void OnClientAuthorized(int client) {
 	if (!g_cvarStatus.BoolValue) {
 		return;
 	}
+	ConnectNameCheck(client);
+}
+
+public void OnClientPutInServer(int client) {
+	if (!g_bChecking[client] && !g_bChecked[client]) {
+		ConnectNameCheck(client);
+	}
+}
+
+void ConnectNameCheck(int client) {
 	g_hLimits[client] = new StringMap();
 	if (g_cvarCheckNames.BoolValue){
 		char sName[MAX_NAME_LENGTH];
@@ -178,13 +207,14 @@ public void OnClientAuthorized(int client, const char[] auth) {
 		
 		CheckClientName(client, sName);
 	}
-	GetClientName(client, g_sOldName[client], MAX_NAME_LENGTH);
-	PrintToChatAll("%s connected", g_sOldName[client]);
 }
 
 public void OnClientDisconnect(int client) {
 	delete g_hLimits[client];
 	g_bChanged[client] = false;
+	g_bChecked[client] = false;
+	g_bChecking[client] = false;
+	g_sOldName[client] = "";
 }
 
 public Action OnClientSayCommand(int client, const char[] command, const char[] sArgs) {
@@ -322,20 +352,26 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 }
 
 public Action Event_OnChangeName(Event event, const char[] name, bool dontBroadcast) {
-	int client = GetClientOfUserId(event.GetInt("userid"));
 	if (!g_cvarStatus.BoolValue || !g_cvarCheckNames.BoolValue) {
 		return Plugin_Handled;
 	}
+
+	int client = GetClientOfUserId(event.GetInt("userid"));
 	char sNewName[MAX_NAME_LENGTH];
 	event.GetString("newname", sNewName, sizeof(sNewName));
 	
+	if (StrEqual(g_sOldName[client], sNewName)) {
+		return Plugin_Handled;
+	}
+
 	if (!g_bChanged[client]) {
-		strcopy(g_sUnfilteredName[client],MAX_NAME_LENGTH, sNewName);
+		strcopy(g_sUnfilteredName[client], MAX_NAME_LENGTH, sNewName);
 		g_bChecking[client] = false;
 	}
 	if (!g_bChecking[client]) {
 		CheckClientName(client, sNewName);
 	}
+
 	return Plugin_Handled;
 }
 
@@ -427,12 +463,8 @@ Action CheckClientName(int client, char[] new_name) {
 						regex2.GetSubString(a, sArray[a], sizeof(sValue));
 					}
 					for (int a = 0; a < random; a++) {
-						if (StrEqual(sValue, "remove", false)) {
-							ReplaceString(new_name, MAX_NAME_LENGTH, sArray[a], "");
-						}
-						else {
-							ReplaceString(new_name, MAX_NAME_LENGTH, sArray[a], sValue);
-						}
+						bool remove = (StrEqual(sValue, "remove", false));
+						ReplaceString(new_name, MAX_NAME_LENGTH, sArray[a], remove ? "" : sValue);
 					}	
 					begin = 0;
 				}
@@ -440,15 +472,18 @@ Action CheckClientName(int client, char[] new_name) {
 		}
 		begin++;
 	}
-
+	TerminateNameUTF8(new_name);
+	if (StrEqual(g_sOldName[client], new_name)) {
+		g_bChecking[client] = false;
+		return Plugin_Handled;
+	}
 	if (changed) {
-		// TerminateNameUTF8(new_name);
 		if (strlen(new_name)==0) {
 			int randomnum = GetRandomInt(0, sizeof(g_sRandomNames[])-1);
 			FormatEx(new_name, MAX_NAME_LENGTH, "%s%s", g_sPrefix, g_sRandomNames[randomnum]);
 		}
 		if (IsClientConnected(client)) {
-			SetClientName(client, new_name);
+
 			if (StrContains(g_sUnfilteredName[client], "`") != -1) {
 				ReplaceString(g_sUnfilteredName[client], MAX_NAME_LENGTH, "`", "´");
 			}
@@ -458,24 +493,21 @@ Action CheckClientName(int client, char[] new_name) {
 			if (StrContains(new_name, "`") != -1) {
 				ReplaceString(new_name, MAX_NAME_LENGTH, "`", "´");
 			}
-			g_bChecking[client] = false;
-			changed = false;
-
 			if (g_cvarIRC_Enabled.BoolValue) {
 				ServerCommand("irc_send PRIVMSG #%s :`%s`  -->  `%s`", g_sIRC_FilteredNames, g_sUnfilteredName[client], new_name);
 			}
-
+			changed = false;
 			g_bChanged[client] = false;
 		}
 	}
+
+	SetClientInfo(client, "name", new_name);
+
 	if (IsClientInGame(client)) {
-		if (StrEqual(g_sOldName[client], new_name)) {
-			return Plugin_Continue;
-		}
 		if (g_cvarIRC_Enabled.BoolValue) {
 			ServerCommand("irc_send PRIVMSG #%s :%s changed name to %s", g_sIRC_Main, g_sOldName[client], new_name);
 		}
-		char color[7];
+		char color[8];
 		switch (GetClientTeam(client)) {
 			case TFTeam_Red: {
 				strcopy(color, sizeof(color), "red");
@@ -487,27 +519,34 @@ Action CheckClientName(int client, char[] new_name) {
 				strcopy(color, sizeof(color), "default");
 			}
 		}
-		CPrintToChatAll("* {%s}%s{default} changed name to {%s}%s{default}", color, g_sOldName[client], color, new_name);
+		if (g_bChecked[client]) {
+			CPrintToChatAll("* {%s}%s{default} changed name to {%s}%s{default}", color, g_sOldName[client], color, new_name);
+		}
 	}
+	else {
+		PrintToChatAll("%s connected", new_name);
+	}
+	g_bChecking[client] = false;
+	g_bChecked[client] = true;
 	strcopy(g_sOldName[client], MAX_NAME_LENGTH, new_name);
-	return Plugin_Continue;
+	return Plugin_Handled;
 }
 
 // ensures that utf8 names are properly terminated
-// void TerminateNameUTF8(char[] name) { 
-	// int len = strlen(name); 
-	
-	// for (int i = 0; i < len; i++) {
-		// int bytes = IsCharMB(name[i]);
-		// if (bytes > 1) {
-			// if (len - i < bytes) {
-				// name[i] = '\0';
-				// return;
-			// }
-			// i += bytes - 1;
-		// }
-	// }
-// }
+void TerminateNameUTF8(char[] name) { 
+	int len = strlen(name); 
+
+	for (int i = 0; i < len; i++) {
+		int bytes = IsCharMB(name[i]);
+		if (bytes > 1) {
+			if (len - i < bytes) {
+				name[i] = '\0';
+				return;
+			}
+			i += bytes - 1;
+		}
+	}
+}
 
 public Action OnClientCommand(int client, int args) {
 	if (!g_cvarStatus.BoolValue || !g_cvarCheckCommands.BoolValue) {
