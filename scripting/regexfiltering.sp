@@ -353,7 +353,7 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 
 public Action Event_OnChangeName(Event event, const char[] name, bool dontBroadcast) {
 	if (!g_cvarStatus.BoolValue || !g_cvarCheckNames.BoolValue) {
-		return Plugin_Handled;
+		return Plugin_Continue;
 	}
 
 	int client = GetClientOfUserId(event.GetInt("userid"));
