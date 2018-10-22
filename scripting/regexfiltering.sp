@@ -479,7 +479,7 @@ Action CheckClientName(int client, char[] new_name) {
 	}
 	if (changed) {
 		if (strlen(new_name)==0) {
-			int randomnum = GetRandomInt(0, sizeof(g_sRandomNames[])-1);
+			int randomnum = GetRandomInt(0, sizeof(g_sRandomNames)-1);
 			FormatEx(new_name, MAX_NAME_LENGTH, "%s%s", g_sPrefix, g_sRandomNames[randomnum]);
 		}
 		if (IsClientConnected(client)) {
