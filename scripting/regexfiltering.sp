@@ -94,6 +94,7 @@ public void OnPluginStart() {
 
 	HookUserMessage(GetUserMessageId("SayText2"), UserMessageHook, true);
 
+	LoadTranslations("common.phrases");
 	
 	g_hArray_Regex_Chat = new ArrayList(3);
 	g_hArray_Regex_Commands = new ArrayList(3);
@@ -102,7 +103,7 @@ public void OnPluginStart() {
 	HookEvent("player_connect_client", Event_PlayerConnect, EventHookMode_Pre);
 	HookEvent("player_changename", Event_OnChangeName, EventHookMode_Pre);
 	RegAdminCmd("sm_testname", cmdTestName, ADMFLAG_ROOT);
-	RegAdminCmd("sm_recheckname", cmdRecheckName, ADMFLAG_ROOT);
+	RegAdminCmd("sm_recheckname", cmdRecheckName, ADMFLAG_GENERIC);
 	
 	AutoExecConfig();
 
@@ -143,15 +144,24 @@ public Action cmdTestName(int client, int args) {
 }
 
 public Action cmdRecheckName(int client, int args) {
+	if (args == 0) {
+		for (int i = 1; i <= MaxClients; i++) {
+			if (isValidClient(i)) {
+				ConnectNameCheck(i);
+				ReplyToCommand(client, "[Filter] Rechecking all names");
+				return Plugin_Handled;
+			}
+		}
+	}
 	char targetName[MAX_NAME_LENGTH];
 	GetCmdArg(1, targetName, sizeof(targetName));
 	int target = FindTarget(client, targetName);
-	if (!target) {
-		ReplyToCommand(client, "[Filter] Unable to find target");
+	if (target) {
+		ConnectNameCheck(target);
+		ReplyToCommand(client, "[Filter] Name Check successful");	
 		return Plugin_Handled;
 	}
-	ConnectNameCheck(target);
-	ReplyToCommand(client, "[Filter] Name Check successful");
+	ReplyToCommand(client, "[Filter] Unable to find target");
 	return Plugin_Handled;
 }
 
@@ -185,11 +195,17 @@ public void OnMapEnd() {
 	}
 }
 
-public void OnClientAuthorized(int client) {
+public void OnClientConnected(int client) {
 	if (!g_cvarStatus.BoolValue) {
 		return;
 	}
-	ConnectNameCheck(client);
+	ConnectNameCheck(client);	
+}
+
+public void OnClientAuthorized(int client) {
+	if (!g_bChecking[client] && !g_bChecked[client]) {
+		ConnectNameCheck(client);
+	}
 }
 
 public void OnClientPutInServer(int client) {
