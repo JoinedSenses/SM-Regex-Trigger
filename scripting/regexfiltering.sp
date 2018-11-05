@@ -507,8 +507,10 @@ Action CheckClientName(int client, char[] new_name) {
 			return Plugin_Handled;
 		}
 	}
-
-	if (IsClientInGame(client)) {
+	if (!IsClientInGame(client)) {
+		PrintToChatAll("%s connected", new_name);
+	}
+	else if (!StrEqual(g_sOldName[client], new_name)) {
 		if (g_cvarIRC_Enabled.BoolValue) {
 			ServerCommand("irc_send PRIVMSG #%s :%s changed name to %s", g_sIRC_Main, g_sOldName[client], new_name);
 		}
@@ -524,13 +526,10 @@ Action CheckClientName(int client, char[] new_name) {
 				strcopy(color, sizeof(color), "default");
 			}
 		}
-		if (g_bChecked[client] && !StrEqual(g_sOldName[client], new_name)) {
-			CPrintToChatAll("* {%s}%s{default} changed name to {%s}%s{default}", color, g_sOldName[client], color, new_name);
-		}
+
+		CPrintToChatAll("* {%s}%s{default} changed name to {%s}%s{default}", color, g_sOldName[client], color, new_name);
 	}
-	else {
-		PrintToChatAll("%s connected", new_name);
-	}
+
 	g_bChanged[client] = false;
 	g_bChecked[client] = true;
 	strcopy(g_sOldName[client], MAX_NAME_LENGTH, new_name);
