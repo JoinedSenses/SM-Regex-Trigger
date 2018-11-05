@@ -2,7 +2,7 @@
 #pragma newdecls required
 
 #define PLUGIN_DESCRIPTION "Regex filtering for names, chat and commands."
-#define PLUGIN_VERSION "2.4.2"
+#define PLUGIN_VERSION "2.4.3"
 #define MAX_EXPRESSION_LENGTH 256
 
 #include <sourcemod>
@@ -32,7 +32,6 @@ char
 bool
 	  g_bLate
 	, g_bChanged[MAXPLAYERS+1]
-	, g_bChecking[MAXPLAYERS+1]
 	, g_bChecked[MAXPLAYERS+1];
 ArrayList
 	  g_hArray_Regex_Chat
@@ -148,17 +147,16 @@ public Action cmdRecheckName(int client, int args) {
 		for (int i = 1; i <= MaxClients; i++) {
 			if (isValidClient(i)) {
 				ConnectNameCheck(i);
-				ReplyToCommand(client, "[Filter] Rechecking all names");
-				return Plugin_Handled;
 			}
 		}
+		ReplyToCommand(client, "[Filter] Rechecking all names");
+		return Plugin_Handled;
 	}
 	char targetName[MAX_NAME_LENGTH];
 	GetCmdArg(1, targetName, sizeof(targetName));
 	int target = FindTarget(client, targetName);
 	if (target) {
-		ConnectNameCheck(target);
-		ReplyToCommand(client, "[Filter] Name Check successful");	
+		ReplyToCommand(client, ConnectNameCheck(target) ? "[Filter] Name Check successful" : "[Filter] Failed to check name");	
 		return Plugin_Handled;
 	}
 	ReplyToCommand(client, "[Filter] Unable to find target");
@@ -195,41 +193,40 @@ public void OnMapEnd() {
 	}
 }
 
-public void OnClientConnected(int client) {
+public void OnClientAuthorized(int client) {
 	if (!g_cvarStatus.BoolValue) {
 		return;
 	}
-	ConnectNameCheck(client);	
-}
-
-public void OnClientAuthorized(int client) {
-	if (!g_bChecking[client] && !g_bChecked[client]) {
-		ConnectNameCheck(client);
-	}
+	g_bChecked[client] = ConnectNameCheck(client);	
 }
 
 public void OnClientPutInServer(int client) {
-	if (!g_bChecking[client] && !g_bChecked[client]) {
+	if (!g_cvarStatus.BoolValue) {
+		return;
+	}
+	if (!g_bChecked[client]) {
 		ConnectNameCheck(client);
 	}
 }
 
-void ConnectNameCheck(int client) {
+bool ConnectNameCheck(int client) {
 	g_hLimits[client] = new StringMap();
 	if (g_cvarCheckNames.BoolValue){
 		char sName[MAX_NAME_LENGTH];
-		GetClientName(client, sName, sizeof(sName));
-		strcopy(g_sUnfilteredName[client], MAX_NAME_LENGTH, sName);
-		
+
+		Format(sName, sizeof(sName), "%N", client);
+		Format(g_sUnfilteredName[client], sizeof(g_sUnfilteredName[]), "%N", client);
+
 		CheckClientName(client, sName);
+		return true;
 	}
+	return false;
 }
 
 public void OnClientDisconnect(int client) {
 	delete g_hLimits[client];
 	g_bChanged[client] = false;
 	g_bChecked[client] = false;
-	g_bChecking[client] = false;
 	g_sOldName[client] = "";
 }
 
@@ -375,149 +372,141 @@ public Action Event_OnChangeName(Event event, const char[] name, bool dontBroadc
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	char sNewName[MAX_NAME_LENGTH];
 	event.GetString("newname", sNewName, sizeof(sNewName));
-	
+
 	if (StrEqual(g_sOldName[client], sNewName)) {
 		return Plugin_Handled;
 	}
 
 	if (!g_bChanged[client]) {
 		strcopy(g_sUnfilteredName[client], MAX_NAME_LENGTH, sNewName);
-		g_bChecking[client] = false;
 	}
-	if (!g_bChecking[client]) {
-		CheckClientName(client, sNewName);
-	}
+
+	CheckClientName(client, sNewName);
 
 	return Plugin_Handled;
 }
 
 Action CheckClientName(int client, char[] new_name) {
-	g_bChecking[client] = true;
 	int begin;
 	int end = g_hArray_Regex_Names.Length;
 	RegexError errorcode = REGEX_ERROR_NONE;
-	bool changed;
 	Handle save[2];
 	Regex regex;
 	StringMap currentsection;
 	any value;
 	char sValue[256];
 
-	while (begin != end) {
-		g_hArray_Regex_Names.GetArray(begin, save, sizeof(save));
-		regex = view_as<Regex>(save[0]);
-		currentsection = view_as<StringMap>(save[1]);
-		if (StrEqual(new_name, "")) {
-			break;
-		}
-		value = regex.Match(new_name, errorcode);
+	if (!g_bChanged[client]) {
+		while (begin != end) {
+			ReplaceString(g_sUnfilteredName[client], MAX_NAME_LENGTH, "`", "´");
+			ReplaceString(g_sUnfilteredName[client], MAX_NAME_LENGTH, ";", ":");
+			ReplaceString(new_name, MAX_NAME_LENGTH, "`", "´");
 
-		if (value > 0 && errorcode == REGEX_ERROR_NONE) {
-			if (currentsection.GetValue("immunity", value) && CheckCommandAccess(client, "", value, true)) {
-				return Plugin_Continue;
+			g_hArray_Regex_Names.GetArray(begin, save, sizeof(save));
+			regex = view_as<Regex>(save[0]);
+			currentsection = view_as<StringMap>(save[1]);
+			if (StrEqual(new_name, "")) {
+				break;
 			}
-			if (currentsection.GetString("warn", sValue, sizeof(sValue))) {
-				CPrintToChat(client, "[{red}Filter{default}] {lightgreen}%s{default}", sValue);
-			}
-			if (currentsection.GetString("action", sValue, sizeof(sValue))) {
-				ParseAndExecute(client, sValue, sizeof(sValue));
-			}
-			if (currentsection.GetValue("limit", value)) {
-				FormatEx(sValue, sizeof(sValue), "%i", regex);
-				
-				any at;
-				g_hLimits[client].GetValue(sValue, at);
-				
-				int mod;
-				if (currentsection.GetValue("forgive", mod)) {
-					FormatEx(sValue, sizeof(sValue), "%i-limit", regex);
-					
-					float date;
-					if (!g_hLimits[client].GetValue(sValue, date)) {
-						date = GetGameTime();
-						g_hLimits[client].SetValue(sValue, date);
-					}
-					
-					date = GetGameTime() - date;
-					at = at - (RoundToCeil(date) & mod);
+			value = regex.Match(new_name, errorcode);
+
+			if (value > 0 && errorcode == REGEX_ERROR_NONE) {
+				if (currentsection.GetValue("immunity", value) && CheckCommandAccess(client, "", value, true)) {
+					return Plugin_Continue;
 				}
-				
-				g_hLimits[client].SetValue(sValue, at);
-				
-				if (at > value) {
-					if (currentsection.GetString("punish", sValue, sizeof(sValue))) {
-						ParseAndExecute(client, sValue, sizeof(sValue));
+				if (currentsection.GetString("warn", sValue, sizeof(sValue))) {
+					CPrintToChat(client, "[{red}Filter{default}] {lightgreen}%s{default}", sValue);
+				}
+				if (currentsection.GetString("action", sValue, sizeof(sValue))) {
+					ParseAndExecute(client, sValue, sizeof(sValue));
+				}
+				if (currentsection.GetValue("limit", value)) {
+					FormatEx(sValue, sizeof(sValue), "%i", regex);
+					
+					any at;
+					g_hLimits[client].GetValue(sValue, at);
+					
+					int mod;
+					if (currentsection.GetValue("forgive", mod)) {
+						FormatEx(sValue, sizeof(sValue), "%i-limit", regex);
+						
+						float date;
+						if (!g_hLimits[client].GetValue(sValue, date)) {
+							date = GetGameTime();
+							g_hLimits[client].SetValue(sValue, date);
+						}
+						
+						date = GetGameTime() - date;
+						at = at - (RoundToCeil(date) & mod);
 					}
 					
+					g_hLimits[client].SetValue(sValue, at);
+					
+					if (at > value) {
+						if (currentsection.GetString("punish", sValue, sizeof(sValue))) {
+							ParseAndExecute(client, sValue, sizeof(sValue));
+						}
+						
+						return Plugin_Handled;
+					}
+				}
+				if (currentsection.GetValue("block", value) && view_as<bool>(value)) {
 					return Plugin_Handled;
 				}
-			}
-			if (currentsection.GetValue("block", value) && view_as<bool>(value)) {
-				return Plugin_Handled;
-			}
-			if (currentsection.GetValue("replace", value)) {
-				int random = GetRandomInt(0, view_as<ArrayList>(value).Length - 1);
-				
-				DataPack pack = view_as<DataPack>(view_as<ArrayList>(value).Get(random));
-				pack.Reset();
-
-				Regex regex2 = ReadPackCell(pack);
-				pack.ReadString(sValue, sizeof(sValue));
-
-				if (regex2 == null) {
-					regex2 = regex;
-				}
-				
-				random = regex2.Match(new_name, errorcode);
-				
-				if (random > 0 && errorcode == REGEX_ERROR_NONE) {
-					g_bChanged[client] = true;
-					changed = true;
-					char[][] sArray = new char[random][256];
+				if (currentsection.GetValue("replace", value)) {
+					int random = GetRandomInt(0, view_as<ArrayList>(value).Length - 1);
 					
-					for (int a = 0; a < random; a++) {
-						regex2.GetSubString(a, sArray[a], sizeof(sValue));
+					DataPack pack = view_as<DataPack>(view_as<ArrayList>(value).Get(random));
+					pack.Reset();
+
+					Regex regex2 = ReadPackCell(pack);
+					pack.ReadString(sValue, sizeof(sValue));
+
+					if (regex2 == null) {
+						regex2 = regex;
 					}
-					for (int a = 0; a < random; a++) {
-						bool remove = (StrEqual(sValue, "remove", false));
-						ReplaceString(new_name, MAX_NAME_LENGTH, sArray[a], remove ? "" : sValue);
-					}	
-					begin = 0;
+					
+					random = regex2.Match(new_name, errorcode);
+					
+					if (random > 0 && errorcode == REGEX_ERROR_NONE) {
+						g_bChanged[client] = true;
+						char[][] sArray = new char[random][256];
+						
+						for (int a = 0; a < random; a++) {
+							regex2.GetSubString(a, sArray[a], sizeof(sValue));
+						}
+						for (int a = 0; a < random; a++) {
+							if (StrEqual(sValue, "remove", false)) {
+								ReplaceString(new_name, MAX_NAME_LENGTH, sArray[a], "");
+							}
+							else {
+								ReplaceString(new_name, MAX_NAME_LENGTH, sArray[a], sValue);
+							}
+						}	
+						begin = 0;
+					}
 				}
 			}
+			begin++;
 		}
-		begin++;
-	}
-	TerminateNameUTF8(new_name);
-	if (StrEqual(g_sOldName[client], new_name)) {
-		g_bChecking[client] = false;
-		return Plugin_Handled;
-	}
-	if (changed) {
-		if (strlen(new_name)==0) {
-			int randomnum = GetRandomInt(0, sizeof(g_sRandomNames)-1);
-			FormatEx(new_name, MAX_NAME_LENGTH, "%s%s", g_sPrefix, g_sRandomNames[randomnum]);
-		}
-		if (IsClientConnected(client)) {
+		
+		if (g_bChanged[client]) {
+			if (!strlen(new_name)) {
+				int randomnum = GetRandomInt(0, sizeof(g_sRandomNames)-1);
+				FormatEx(new_name, MAX_NAME_LENGTH, "%s%s", g_sPrefix, g_sRandomNames[randomnum]);
+			}
 
-			if (StrContains(g_sUnfilteredName[client], "`") != -1) {
-				ReplaceString(g_sUnfilteredName[client], MAX_NAME_LENGTH, "`", "´");
-			}
-			if (StrContains(g_sUnfilteredName[client], ";") != -1) {
-				ReplaceString(g_sUnfilteredName[client], MAX_NAME_LENGTH, ";", ":");
-			}
-			if (StrContains(new_name, "`") != -1) {
-				ReplaceString(new_name, MAX_NAME_LENGTH, "`", "´");
-			}
 			if (g_cvarIRC_Enabled.BoolValue) {
 				ServerCommand("irc_send PRIVMSG #%s :`%s`  -->  `%s`", g_sIRC_FilteredNames, g_sUnfilteredName[client], new_name);
 			}
-			changed = false;
-			g_bChanged[client] = false;
+			TerminateNameUTF8(new_name);
+			SetClientName(client, new_name);
+			if (!IsClientInGame(client)) {
+				CheckClientName(client, new_name);
+			}
+			return Plugin_Handled;
 		}
 	}
-
-	SetClientInfo(client, "name", new_name);
 
 	if (IsClientInGame(client)) {
 		if (g_cvarIRC_Enabled.BoolValue) {
@@ -535,14 +524,14 @@ Action CheckClientName(int client, char[] new_name) {
 				strcopy(color, sizeof(color), "default");
 			}
 		}
-		if (g_bChecked[client]) {
+		if (g_bChecked[client] && !StrEqual(g_sOldName[client], new_name)) {
 			CPrintToChatAll("* {%s}%s{default} changed name to {%s}%s{default}", color, g_sOldName[client], color, new_name);
 		}
 	}
 	else {
 		PrintToChatAll("%s connected", new_name);
 	}
-	g_bChecking[client] = false;
+	g_bChanged[client] = false;
 	g_bChecked[client] = true;
 	strcopy(g_sOldName[client], MAX_NAME_LENGTH, new_name);
 	return Plugin_Handled;
