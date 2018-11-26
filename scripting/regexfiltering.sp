@@ -2,7 +2,7 @@
 #pragma newdecls required
 
 #define PLUGIN_DESCRIPTION "Regex filtering for names, chat and commands."
-#define PLUGIN_VERSION "2.4.3"
+#define PLUGIN_VERSION "2.4.4"
 #define MAX_EXPRESSION_LENGTH 256
 
 #include <sourcemod>
