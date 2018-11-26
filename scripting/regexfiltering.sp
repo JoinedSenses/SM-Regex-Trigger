@@ -317,9 +317,9 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 			}
 			
 			if (currentsection.GetValue("replace", value)) {
-				int random = GetRandomInt(0, view_as<ArrayList>(value).Length - 1);
+				int random = GetRandomInt(0, (view_as<ArrayList>(value)).Length - 1);
 				
-				DataPack pack = view_as<DataPack>(view_as<ArrayList>(value).Get(random));
+				DataPack pack = view_as<DataPack>((view_as<ArrayList>(value)).Get(random));
 				pack.Reset();
 
 				Regex regex2 = pack.ReadCell();
@@ -376,11 +376,12 @@ public Action Event_OnChangeName(Event event, const char[] name, bool dontBroadc
 	if (StrEqual(g_sOldName[client], sNewName)) {
 		return Plugin_Handled;
 	}
+	
+	strcopy(g_sUnfilteredName[client], MAX_NAME_LENGTH, sNewName);
 
-	if (!g_bChanged[client]) {
-		strcopy(g_sUnfilteredName[client], MAX_NAME_LENGTH, sNewName);
-	}
-
+	// reset name changed flag:
+	g_bChanged[client] = false;
+	
 	CheckClientName(client, sNewName);
 
 	return Plugin_Handled;
@@ -454,9 +455,9 @@ Action CheckClientName(int client, char[] new_name) {
 					return Plugin_Handled;
 				}
 				if (currentsection.GetValue("replace", value)) {
-					int random = GetRandomInt(0, view_as<ArrayList>(value).Length - 1);
+					int random = GetRandomInt(0, (view_as<ArrayList>(value)).Length - 1);
 					
-					DataPack pack = view_as<DataPack>(view_as<ArrayList>(value).Get(random));
+					DataPack pack = view_as<DataPack>((view_as<ArrayList>(value)).Get(random));
 					pack.Reset();
 
 					Regex regex2 = ReadPackCell(pack);
@@ -624,9 +625,9 @@ public Action OnClientCommand(int client, int args) {
 				return Plugin_Handled;
 			}
 			if (currentsection.GetValue("replace", value)) {
-				int random = GetRandomInt(0, view_as<ArrayList>(value).Length - 1);
+				int random = GetRandomInt(0, (view_as<ArrayList>(value)).Length - 1);
 				
-				DataPack pack = view_as<DataPack>(view_as<ArrayList>(value).Get(random));
+				DataPack pack = view_as<DataPack>((view_as<ArrayList>(value)).Get(random));
 				pack.Reset();
 				
 				Regex regex2 = ReadPackCell(pack);
