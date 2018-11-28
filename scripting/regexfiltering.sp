@@ -1,8 +1,8 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_DESCRIPTION "Regex filtering for names, chat and commands."
-#define PLUGIN_VERSION "2.4.4"
+#define PLUGIN_DESCRIPTION "Regex filtering for names, chat, and commands."
+#define PLUGIN_VERSION "2.4.5"
 #define MAX_EXPRESSION_LENGTH 256
 
 #include <sourcemod>
@@ -91,7 +91,17 @@ public void OnPluginStart() {
 	g_cvarIRCFilteredMessages = CreateConVar("sm_regex_irc_messages", "", "Channel for filtered messages", FCVAR_NOTIFY);
 	g_cvarIRCFilteredNames = CreateConVar("sm_regex_irc_names", "", "Channel for filtered names", FCVAR_NOTIFY);
 
-	HookUserMessage(GetUserMessageId("SayText2"), UserMessageHook, true);
+	AutoExecConfig();
+
+	g_cvarUnnamedPrefix.AddChangeHook(convarChanged);
+	g_cvarUnnamedPrefix.GetString(g_sPrefix, sizeof(g_sPrefix));
+
+	RegAdminCmd("sm_testname", cmdTestName, ADMFLAG_ROOT);
+	RegAdminCmd("sm_recheckname", cmdRecheckName, ADMFLAG_GENERIC);
+
+	HookUserMessage(GetUserMessageId("SayText2"), hookUserMessage, true);
+	HookEvent("player_connect_client", eventPlayerConnect, EventHookMode_Pre);
+	HookEvent("player_changename", eventOnChangeName, EventHookMode_Pre);
 
 	LoadTranslations("common.phrases");
 	
@@ -99,15 +109,6 @@ public void OnPluginStart() {
 	g_hArray_Regex_Commands = new ArrayList(3);
 	g_hArray_Regex_Names = new ArrayList(3);
 	
-	HookEvent("player_connect_client", Event_PlayerConnect, EventHookMode_Pre);
-	HookEvent("player_changename", Event_OnChangeName, EventHookMode_Pre);
-	RegAdminCmd("sm_testname", cmdTestName, ADMFLAG_ROOT);
-	RegAdminCmd("sm_recheckname", cmdRecheckName, ADMFLAG_GENERIC);
-	
-	AutoExecConfig();
-
-	g_cvarUnnamedPrefix.AddChangeHook(convarChanged);
-
 	CreateTimer(5.0, TimerLoadExpressions);
 
 	if (g_bLate) {
@@ -122,7 +123,6 @@ public void OnPluginStart() {
 			}
 		}
 	}
-	g_cvarUnnamedPrefix.GetString(g_sPrefix, sizeof(g_sPrefix));
 }
 
 bool isValidClient(int client) {
@@ -189,7 +189,7 @@ public void OnMapStart() {
 public void OnMapEnd() {
 	delete g_hLimits[0];
 	for (int i = 1; i <= MaxClients; i++) {
-		g_sOldName[i] = "";
+		ClearData(i);
 	}
 }
 
@@ -197,6 +197,7 @@ public void OnClientAuthorized(int client) {
 	if (!g_cvarStatus.BoolValue) {
 		return;
 	}
+	ClearData(client);
 	g_bChecked[client] = ConnectNameCheck(client);	
 }
 
@@ -205,13 +206,26 @@ public void OnClientPostAdminCheck(int client) {
 		return;
 	}
 	if (!g_bChecked[client]) {
+		ClearData(client);
 		ConnectNameCheck(client);
 	}
 }
 
+public void OnClientDisconnect(int client) {
+	delete g_hLimits[client];
+	ClearData(client);
+}
+
+void ClearData(int client) {
+	g_bChecked[client] = false;
+	g_bChanged[client] = false;
+	g_sOldName[client] = "";
+	g_sUnfilteredName[client] = "";
+}
+
 bool ConnectNameCheck(int client) {
-	g_hLimits[client] = new StringMap();
 	if (g_cvarCheckNames.BoolValue){
+		g_hLimits[client] = new StringMap();
 		char sName[MAX_NAME_LENGTH];
 
 		Format(sName, sizeof(sName), "%N", client);
@@ -221,13 +235,6 @@ bool ConnectNameCheck(int client) {
 		return true;
 	}
 	return false;
-}
-
-public void OnClientDisconnect(int client) {
-	delete g_hLimits[client];
-	g_bChanged[client] = false;
-	g_bChecked[client] = false;
-	g_sOldName[client] = "";
 }
 
 public Action OnClientSayCommand(int client, const char[] command, const char[] sArgs) {
@@ -358,7 +365,7 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 	return Plugin_Continue;
 }
 
-public Action Event_OnChangeName(Event event, const char[] name, bool dontBroadcast) {
+public Action eventOnChangeName(Event event, const char[] name, bool dontBroadcast) {
 	if (!g_cvarStatus.BoolValue || !g_cvarCheckNames.BoolValue) {
 		return Plugin_Continue;
 	}
@@ -906,12 +913,12 @@ void AddPatternReplacement(const char[] value, ArrayList data) {
 
 // ------------------------ Message suppression
 
-public Action Event_PlayerConnect(Event event, const char[] name, bool dontBroadcast) {
+public Action eventPlayerConnect(Event event, const char[] name, bool dontBroadcast) {
 	event.BroadcastDisabled = true;
 	return Plugin_Continue;
 }
 
-public Action UserMessageHook(UserMsg msg_hd, BfRead bf, const int[] players, int playersNum, bool reliable, bool init) {
+public Action hookUserMessage(UserMsg msg_hd, BfRead bf, const int[] players, int playersNum, bool reliable, bool init) {
 	char sMessage[96];
 	bf.ReadString(sMessage, sizeof(sMessage));
 	bf.ReadString(sMessage, sizeof(sMessage));
