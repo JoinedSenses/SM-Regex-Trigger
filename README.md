@@ -1,5 +1,5 @@
 # TF2-Regex-Filter
-**A plugin created by Keith Warren [Sky Guardian], modified and maintained by myself.**  
+**A plugin originally developed by Keith Warren [Sky Guardian], modified and maintained by myself.**  
 **Serves as a filter for names, chat, and commands.**  
   
 I have included the regex config file  which I use for my servers. It gets updated regularly.  
@@ -12,13 +12,14 @@ https://regex101.com
 
 See this plugin for reference, since they are similar: https://forums.alliedmods.net/showthread.php?t=71867
 
-*This plugin has included features which integrate the use of **SourceIRC** when connecting multiple servers.* 
+*This plugin has included features which integrate the use of **SourceIRC** and **Discord** when connecting multiple servers.* 
 https://github.com/Azelphur/SourceIRC (Original)  
-https://github.com/JoinedSenses/SourceIRC (Modified)
-## Included IRC Features:
- * Method to relay 'connect' messages to a main IRC channel  
- * Method to relay filtered names and chat messages to a seperate channel for debugging/analysis.  
- * IRC relayed messages are formatted specifically with Discord in mind if it is used (Servers -> IRC -> Discord)  
+https://github.com/JoinedSenses/SourceIRC (Modified)  
+## Optional features:  
+ * IRC: Method to relay 'connect' messages to a main IRC channel  
+ * Discord: Method to relay filtered names and chat messages to a seperate channel for debugging/analysis.  
+	Notes: If using the discord api plugin, it requires you to create a config for name_filter and chat_filter  
+	  I could also suggest modifying this plugin at line 136 if you wish to modify the server name that appears when relayed to discord.
 
 ## ConVars
 ```
@@ -30,8 +31,6 @@ sm_regex_check_names "1" // Enable name checking
 sm_regex_prefix "" // Prefix to add to randomly generated names if a players name is unnamed  
 sm_regex_irc_enabled "0" // Enable use of IRC relay  
 sm_regex_irc_main "" // Public server 'connect' messages are relayed to. Dont include the #  
-sm_regex_irc_messages "" // Channel for filtered messages. Don't include the #  
-sm_regex_irc_names "" // Channel for filtered names. Don't include the #   
 ```
 ## Installation  
  * Install regexfiltering.smx into your plugins folder.  
