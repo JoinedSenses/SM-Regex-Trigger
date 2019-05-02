@@ -40,3 +40,42 @@ sm_regex_irc_main "" // Public server 'connect' messages are relayed to. Dont in
 
 **Discord formatting of filtered channel:**  
 ![alt text](https://i.imgur.com/WhD5wUh.png)
+  
+  
+## Config Keys
+**Warn:** Display a warning message to the player
+
+`"warn" "msg"`
+Allows you to give fair warning about your rules when they are broken
+
+**Action:** Executed if a pattern matches
+
+`"action" "rcon action"`
+"rcon action" can be any command you want, but there may be only one action per section.
+%n, %i, and %u will be replaced with the clients name, index, or userid, respectively, if they are in the command string.
+
+**Block:** Block the text absolutely
+
+`"block" "1"`
+Very simple, skips all the replacement stuff, does not skip the limiting step, so you can block and limit at the same time (limit the amount of times one can attempt to say it, and also block the words from being said)
+
+**Limit:** Limit the amount of times a piece of text can be said
+
+`"limit" "number"`
+Also simple, will block if the client says the pattern more times than "number"
+
+**Forgive:** Forgives one indiscretion every x seconds
+
+`"forgive" "x"`
+Allows more flexibility with limiting. It might be ok to advertise once every five minutes, not every five seconds, so you can "forgive" a slip up every "x" seconds.
+
+**Punish:** executes a punishment command if limit is exceeded
+
+`"punish" "cmd"`
+"cmd" can be any command you want, but there may be only one punishment per section.
+%n, %i, and %u will be replaced with the clients name, index, or userid, respectively, if they are in the command string.
+
+**Replace:** Replaces matched text with a value.
+
+`"replace" "with"`
+Will replace the pattern's matches with "with", and check everything again.
