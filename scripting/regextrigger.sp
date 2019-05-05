@@ -107,7 +107,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 public void OnPluginStart() {
 	CreateConVar("sm_regexfilters_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_DONTRECORD|FCVAR_SPONLY).SetString(PLUGIN_VERSION);
 	g_cvarStatus = CreateConVar("sm_regex_allow", "1", "Status of the plugin.\n(1 = on, 0 = off)", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_cvarConfigPath = CreateConVar("sm_regex_config_path", "configs/regexfilters/", "Location to store the regex filters at.", FCVAR_NONE);
+	g_cvarConfigPath = CreateConVar("sm_regex_config_path", "configs/regextriggers/", "Location to store the regex filters at.", FCVAR_NONE);
 	g_cvarCheckChat = CreateConVar("sm_regex_check_chat", "1", "Filter out and check chat messages.", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_cvarCheckCommands = CreateConVar("sm_regex_check_commands", "1", "Filter out and check commands.", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_cvarCheckNames = CreateConVar("sm_regex_check_names", "1", "Filter out and check names.", FCVAR_NONE, true, 0.0, true, 1.0);
@@ -147,7 +147,7 @@ public void OnPluginStart() {
 
 	g_cvarConfigPath.GetString(g_sConfigPath, sizeof(g_sConfigPath));
 	BuildPath(Path_SM, g_sConfigPath, sizeof(g_sConfigPath), g_sConfigPath);
-	Format(g_sConfigPath, sizeof(g_sConfigPath), "%sregexfilters.cfg", g_sConfigPath);
+	Format(g_sConfigPath, sizeof(g_sConfigPath), "%sregextriggers.cfg", g_sConfigPath);
 
 	if (!FileExists(g_sConfigPath)) {
 		SetFailState("Error finding file: %s", g_sConfigPath);
