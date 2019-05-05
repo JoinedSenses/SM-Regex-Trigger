@@ -1,9 +1,7 @@
-# TF2-Regex-Filter
-**A plugin originally developed by Keith Warren [Sky Guardian], modified and maintained by myself.**  
-**Serves as a filter for names, chat, and commands.**  
+# TF2-Regex-Trigger
+**Serves as a regex trigger/filter for names, chat, and commands.**  
   
-I have included the regex config file  which I use for my servers. It gets updated regularly.  
-**FYI:** The "blank" section at the top of the config is intended. There is some weird bug occuring when it is removed, more than likely due to the funky characters used.  
+I have included the regex config file which I use for my servers.  
 
 If you are unfamilair with regex, check out  these websites:  
 http://www.rexegg.com/regex-quickstart.html  
@@ -18,19 +16,19 @@ https://github.com/JoinedSenses/SourceIRC (Modified)
 ## Optional features:  
  * IRC: Method to relay 'connect' messages to a main IRC channel  
  * Discord: Method to relay filtered names and chat messages to a seperate channel for debugging/analysis.  
-	Notes: If using the discord api plugin, it requires you to create a config for name_filter and chat_filter  
-	  I could also suggest modifying this plugin at line 136 if you wish to modify the server name that appears when relayed to discord.
+ * Notes: If using the discord api plugin, you're required to setup discord.cfg and to update /cfg/sourcemod/plugin.regextrigger.cfg  
 
 ## ConVars
 ```
-sm_regex_status "1"  // Enable/Disable plugin  
-sm_regex_config_path "configs/regexfilters/" // Don't touch. Config path of filters  
-sm_regex_check_chat "1" // Enable chat checking  
-sm_regex_check_commands "1" // Enable command checking  
-sm_regex_check_names "1" // Enable name checking  
-sm_regex_prefix "" // Prefix to add to randomly generated names if a players name is unnamed  
-sm_regex_irc_enabled "0" // Enable use of IRC relay  
-sm_regex_irc_main "" // Public server 'connect' messages are relayed to. Dont include the #  
+sm_regex_allow "1" Status of the plugin.\n(1 = on, 0 = off)"
+sm_regex_config_path "configs/regextriggers/" Location to store the regex filters at."
+sm_regex_check_chat "1" Filter out and check chat messages."
+sm_regex_check_commands "1" Filter out and check commands."
+sm_regex_check_names "1" Filter out and check names."
+sm_regex_prefix "" "Prefix for random name when player has become unnamed"
+sm_regex_irc_enabled "0" Enable IRC relay for SourceIRC. Sends messages to flagged channels"
+sm_regex_channelname "" Key name from discord.cfg for name relay"
+sm_regex_channelchat "" Key name from discord.cfg for chat relay"
 ```
 ## Installation  
  * Install regexfiltering.smx into your plugins folder.  
@@ -52,11 +50,11 @@ Allows you to give fair warning about your rules when they are broken
 "rcon action" can be any command you want, but there may be only one action per section.  
 %n, %i, and %u will be replaced with the clients name, index, or userid, respectively, if they are in the command string.  
 
-**Block:** Block the text absolutely  
+**Block:** Block the text absolutely (**Does not work for names**)   
 `"block" "1"`  
 Very simple, skips all the replacement stuff, does not skip the limiting step, so you can block and limit at the same time (limit the amount of times one can attempt to say it, and also block the words from being said)  
 
-**Limit:** Limit the amount of times a piece of text can be said  
+**Limit:** Limit the amount of times the matched action can occur  
 `"limit" "number"`  
 Also simple, will block if the client says the pattern more times than "number"  
 
@@ -72,3 +70,7 @@ Allows more flexibility with limiting. It might be ok to advertise once every fi
 **Replace:** Replaces matched text with a value.  
 `"replace" "with"`  
 Will replace the pattern's matches with "with", and check everything again.  
+
+**Relay:** Relays information to the related discord channel
+`"relay" "1"`
+If enabled and discord api is use, this will allow the plugin to relay messages to discord channels.
