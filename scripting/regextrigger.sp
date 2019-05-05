@@ -13,7 +13,6 @@
 #include <sdktools>
 #include <regex>
 #include <tf2>
-#include <morecolors>
 #undef REQUIRE_PLUGIN
 #include <sourceirc>
 #include <discord>
@@ -105,7 +104,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 }
 
 public void OnPluginStart() {
-	CreateConVar("sm_regexfilters_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_DONTRECORD|FCVAR_SPONLY).SetString(PLUGIN_VERSION);
+	CreateConVar("sm_regextriggers_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_DONTRECORD|FCVAR_SPONLY).SetString(PLUGIN_VERSION);
 	g_cvarStatus = CreateConVar("sm_regex_allow", "1", "Status of the plugin.\n(1 = on, 0 = off)", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_cvarConfigPath = CreateConVar("sm_regex_config_path", "configs/regextriggers/", "Location to store the regex filters at.", FCVAR_NONE);
 	g_cvarCheckChat = CreateConVar("sm_regex_check_chat", "1", "Filter out and check chat messages.", FCVAR_NONE, true, 0.0, true, 1.0);
@@ -590,7 +589,7 @@ void ParseAndExecute(int client, char[] command, int size) {
 
 void AnnounceNameChange(int client, char[] newName, bool connecting = false) {
 	if (connecting) {
-		CPrintToChatAll("%s connected", newName);
+		PrintToChatAll("%s connected", newName);
 	}
 	else if (!StrEqual(g_sOldName[client], newName)) {
 		if (g_cvarIRC_Enabled.BoolValue && g_bIRC) {
@@ -612,7 +611,7 @@ void AnnounceNameChange(int client, char[] newName, bool connecting = false) {
 			}	
 		}
 
-		CPrintToChatAll("* %s%s\x01 changed name to %s%s", color, g_sOldName[client], color, newName);
+		PrintToChatAll("\x01* %s%s\x01 changed name to %s%s", color, g_sOldName[client], color, newName);
 	}
 
 	g_bChanged[client] = false;
@@ -687,7 +686,7 @@ void CheckClientName(int client, char[] newName, int size, bool connecting = fal
 			}
 
 			if (rules.GetString("warn", buffer, sizeof(buffer))) {
-				CPrintToChat(client, "[%sFilter\x01] %s%s", g_sRed, g_sLightGreen, buffer);
+				PrintToChat(client, "\x01[%sFilter\x01] %s%s", g_sRed, g_sLightGreen, buffer);
 			}
 
 			if (rules.GetString("action", buffer, sizeof(buffer))) {
@@ -699,9 +698,9 @@ void CheckClientName(int client, char[] newName, int size, bool connecting = fal
 				g_smClientLimits[NAME][client].GetValue(sectionName, clientLimitCount);
 				g_smClientLimits[NAME][client].SetValue(sectionName, ++clientLimitCount);
 
-				CPrintToChat(
+				PrintToChat(
 					  client
-					, "[%sFilter\x01] Max limit for this trigger is set to  %s%i\x01. Current: %s%i."
+					, "\x01[%sFilter\x01] Max limit for this trigger is set to  %s%i\x01. Current: %s%i."
 					, g_sRed
 					, g_sLightGreen
 					, limit
@@ -717,11 +716,11 @@ void CheckClientName(int client, char[] newName, int size, bool connecting = fal
 					dp.WriteString(sectionName);
 					CreateTimer(forgive, timerForgive, dp);
 
-					CPrintToChat(client, "[%sFilter\x01] Forgiven in %s%0.1f\x01 seconds", g_sRed, g_sLightGreen, forgive);
+					PrintToChat(client, "\x01[%sFilter\x01] Forgiven in %s%0.1f\x01 seconds", g_sRed, g_sLightGreen, forgive);
 				}
 
 				if (clientLimitCount >= limit && rules.GetString("punish", buffer, sizeof(buffer))) {
-					CPrintToChat(client, "[%sFilter\x01] You have hit the limit of %s%i", g_sRed, g_sLightGreen, limit);
+					PrintToChat(client, "\x01[%sFilter\x01] You have hit the limit of %s%i", g_sRed, g_sLightGreen, limit);
 
 					ParseAndExecute(client, buffer, sizeof(buffer));
 
@@ -857,7 +856,7 @@ Action CheckClientMessage(int client, const char[] command, const char[] text) {
 			}
 
 			if (rules.GetString("warn", buffer, sizeof(buffer))) {
-				CPrintToChat(client, "[%sFilter\x01] %s%s", g_sRed, g_sLightGreen, buffer);
+				PrintToChat(client, "\x01[%sFilter\x01] %s%s", g_sRed, g_sLightGreen, buffer);
 			}
 
 			if (rules.GetString("action", buffer, sizeof(buffer))) {
@@ -869,9 +868,9 @@ Action CheckClientMessage(int client, const char[] command, const char[] text) {
 				g_smClientLimits[CHAT][client].GetValue(sectionName, clientLimitCount);
 				g_smClientLimits[CHAT][client].SetValue(sectionName, ++clientLimitCount);
 
-				CPrintToChat(
+				PrintToChat(
 					  client
-					, "[%sFilter\x01] Max limit for this trigger is set to %s%i\x01. Current: %s%i\x01."
+					, "\x01[%sFilter\x01] Max limit for this trigger is set to %s%i\x01. Current: %s%i\x01."
 					, g_sRed
 					, g_sLightGreen
 					, limit
@@ -887,11 +886,11 @@ Action CheckClientMessage(int client, const char[] command, const char[] text) {
 					dp.WriteString(sectionName);
 					CreateTimer(forgive, timerForgive, dp);
 
-					CPrintToChat(client, "[%sFilter\x01] Forgiven in %s%0.1f seconds", g_sRed, g_sLightGreen, forgive);
+					PrintToChat(client, "\x01[%sFilter\x01] Forgiven in %s%0.1f seconds", g_sRed, g_sLightGreen, forgive);
 				}
 
 				if (clientLimitCount >= limit && rules.GetString("punish", buffer, sizeof(buffer))) {
-					CPrintToChat(client, "[%sFilter\x01] You have hit the limit of %s%i", g_sRed, g_sLightGreen, limit);
+					PrintToChat(client, "\x01[%sFilter\x01] You have hit the limit of %s%i", g_sRed, g_sLightGreen, limit);
 
 					ParseAndExecute(client, buffer, sizeof(buffer));
 					return Plugin_Handled;
@@ -1036,7 +1035,7 @@ Action CheckClientCommand(int client, char[] cmd) {
 			}
 
 			if (rules.GetString("warn", buffer, sizeof(buffer))) {
-				CPrintToChat(client, "[%sFilter\x01] %s%s", g_sRed, g_sLightGreen, buffer);
+				PrintToChat(client, "\x01[%sFilter\x01] %s%s", g_sRed, g_sLightGreen, buffer);
 			}
 
 			if (rules.GetString("action", buffer, sizeof(buffer))) {
@@ -1048,9 +1047,9 @@ Action CheckClientCommand(int client, char[] cmd) {
 				g_smClientLimits[COMMAND][client].GetValue(sectionName, clientLimitCount);
 				g_smClientLimits[COMMAND][client].SetValue(sectionName, ++clientLimitCount);
 
-				CPrintToChat(
+				PrintToChat(
 					  client
-					, "[%sFilter\x01] Max limit for this trigger is set to %s%i\x01. Current: %s%i\x01."
+					, "\x01[%sFilter\x01] Max limit for this trigger is set to %s%i\x01. Current: %s%i\x01."
 					, g_sRed
 					, g_sLightGreen
 					, limit
@@ -1066,11 +1065,11 @@ Action CheckClientCommand(int client, char[] cmd) {
 					dp.WriteString(sectionName);
 					CreateTimer(forgive, timerForgive, dp);
 
-					CPrintToChat(client, "[%sFilter\x01] Forgiven in %s%0.1f seconds", g_sRed, g_sLightGreen, forgive);
+					PrintToChat(client, "\x01[%sFilter\x01] Forgiven in %s%0.1f seconds", g_sRed, g_sLightGreen, forgive);
 				}
 
 				if (clientLimitCount >= limit && rules.GetString("punish", buffer, sizeof(buffer))) {
-					CPrintToChat(client, "[%sFilter\x01] You have hit the limit of %s%i", g_sRed, g_sLightGreen, limit);
+					PrintToChat(client, "\x01[%sFilter\x01] You have hit the limit of %s%i", g_sRed, g_sLightGreen, limit);
 
 					ParseAndExecute(client, buffer, sizeof(buffer));
 					return Plugin_Handled;
