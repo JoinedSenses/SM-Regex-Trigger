@@ -71,6 +71,6 @@ Allows more flexibility with limiting. It might be ok to advertise once every fi
 `"replace" "with"`  
 Will replace the pattern's matches with "with", and check everything again.  
 
-**Relay:** Relays information to the related discord channel
-`"relay" "1"`
-If enabled and discord api is use, this will allow the plugin to relay messages to discord channels.
+**Relay:** Relays information to the related discord channel  
+`"relay" "1"`  
+If enabled and discord api is use, this will allow the plugin to relay messages to discord channels.  
