@@ -125,6 +125,7 @@ public void OnPluginStart() {
 
 	AutoExecConfig();
 
+	g_cvarUnnamedPrefix.GetString(g_sPrefix, sizeof(g_sPrefix));
 	g_cvarNameChannel.GetString(g_sNameChannel, sizeof(g_sNameChannel));
 	g_cvarChatChannel.GetString(g_sChatChannel, sizeof(g_sChatChannel));
 
