@@ -53,6 +53,7 @@ char
 	, g_sPrefix[MAX_NAME_LENGTH]
 	, g_sHostName[32]
 	, g_sRed[12] = "\x07FF4040"
+	, g_sBlue[12] = "\x0799CCFF"
 	, g_sLightGreen[12] = "\x0799FF99";
 EngineVersion
 	  g_EngineVersion;
@@ -322,7 +323,7 @@ public Action eventOnChangeName(Event event, const char[] name, bool dontBroadca
 // =================== Commands
 
 //	public Action cmdTestName(int client, int args) {
-//		char arg[MAX_MESSAGE_LENGTH];
+//		char arg[128];
 //		GetCmdArgString(arg, sizeof(arg));
 
 //		SetClientName(client, arg);
@@ -601,13 +602,10 @@ void AnnounceNameChange(int client, char[] newName, bool connecting = false) {
 		if (g_EngineVersion == Engine_TF2) {
 			switch (GetClientTeam(client)) {
 				case TFTeam_Red: {
-					strcopy(color, sizeof(color), "{red}");
+					strcopy(color, sizeof(color), g_sRed);
 				}
 				case TFTeam_Blue: {
-					strcopy(color, sizeof(color), "{blue}");
-				}
-				default: {
-					strcopy(color, sizeof(color), "{default}");
+					strcopy(color, sizeof(color), g_sBlue);
 				}
 			}	
 		}
@@ -732,6 +730,7 @@ void CheckClientName(int client, char[] newName, int size, bool connecting = fal
 			}
 
 			rules.GetValue("relay", relay);
+			PrintToChatAll("%i", relay);
 
 			if (rules.GetValue("replace", replaceList)) {
 				g_bChanged[client] = true;
