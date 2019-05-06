@@ -940,7 +940,12 @@ Action CheckClientMessage(int client, const char[] command, const char[] text) {
 					Discord_EscapeString(message, sizeof(message));
 
 					char output[256];
-					Format(output, sizeof(output), "**%s** %s: `%s`", g_sHostName, clientName, message);
+					if (changed) {
+						Format(output, sizeof(output), "**%s** %s: `%s` --> `%s` **Blocked**", g_sHostName, clientName, message, text);
+					}
+					else {
+						Format(output, sizeof(output), "**%s** %s: `%s`", g_sHostName, clientName, message);
+					}
 
 					Discord_SendMessage(g_sChatChannel, output);
 				}
@@ -1086,7 +1091,12 @@ Action CheckClientCommand(int client, char[] cmd) {
 					Discord_EscapeString(command, sizeof(command));
 
 					char output[256];
-					Format(output, sizeof(output), "**%s** Command| %s: `%s`", g_sHostName, clientName, command);
+					if (changed) {
+						Format(output, sizeof(output), "**%s** Command| %s: `%s` --> `%s` **Blocked**", g_sHostName, clientName, command, cmd);
+					}
+					else {
+						Format(output, sizeof(output), "**%s** Command| %s: `%s`", g_sHostName, clientName, command);
+					}
 
 					Discord_SendMessage(g_sChatChannel, output);
 				}
