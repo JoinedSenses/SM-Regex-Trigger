@@ -941,7 +941,7 @@ Action CheckClientMessage(int client, const char[] command, const char[] text) {
 
 					char output[256];
 					if (changed) {
-						Format(output, sizeof(output), "**%s** %s: `%s` --> `%s` **Blocked**", g_sHostName, clientName, message, text);
+						Format(output, sizeof(output), "**%s** %s: `%s` --> `%s` **Blocked**", g_sHostName, clientName, text, message);
 					}
 					else {
 						Format(output, sizeof(output), "**%s** %s: `%s`", g_sHostName, clientName, message);
@@ -1092,7 +1092,7 @@ Action CheckClientCommand(int client, char[] cmd) {
 
 					char output[256];
 					if (changed) {
-						Format(output, sizeof(output), "**%s** Command| %s: `%s` --> `%s` **Blocked**", g_sHostName, clientName, command, cmd);
+						Format(output, sizeof(output), "**%s** Command| %s: `%s` --> `%s` **Blocked**", g_sHostName, clientName, cmd, command);
 					}
 					else {
 						Format(output, sizeof(output), "**%s** Command| %s: `%s`", g_sHostName, clientName, command);
