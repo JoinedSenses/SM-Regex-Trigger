@@ -146,6 +146,7 @@ public void OnPluginStart() {
 
 	HookUserMessage(GetUserMessageId("SayText2"), hookUserMessage, true);
 	HookEvent("player_connect_client", eventPlayerConnect, EventHookMode_Pre);
+	HookEvent("player_connect", eventPlayerConnect, EventHookMode_Pre);
 	HookEvent("player_changename", eventOnChangeName, EventHookMode_Pre);
 
 	LoadTranslations("common.phrases");
