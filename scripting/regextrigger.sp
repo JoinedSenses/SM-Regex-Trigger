@@ -8,7 +8,7 @@
 
 // Define created to use settings specifically for my own servers.
 // allows easier release of this plugin.
-#define CUSTOM
+//	#define CUSTOM
 
 #include <sourcemod>
 #include <sdktools>
