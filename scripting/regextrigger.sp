@@ -2,12 +2,13 @@
 #pragma newdecls required
 
 #define PLUGIN_DESCRIPTION "Regex triggers for names, chat, and commands."
-#define PLUGIN_VERSION "2.5.0"
+#define PLUGIN_VERSION "2.5.1"
 #define MAX_EXPRESSION_LENGTH 512
+#define MATCH_SIZE 64
 
 // Define created to use settings specifically for my own servers.
 // allows easier release of this plugin.
-//	#define CUSTOM
+#define CUSTOM
 
 #include <sourcemod>
 #include <sdktools>
@@ -38,6 +39,8 @@ ConVar
 	, g_cvarIRC_Enabled
 	, g_cvarNameChannel
 	, g_cvarChatChannel;
+Regex
+	  g_rRegexCaptures;
 StringMap
 	  g_smClientLimits[TRIGGER_COUNT][MAXPLAYERS+1];
 bool
@@ -130,8 +133,16 @@ public void OnPluginStart() {
 	g_cvarUnnamedPrefix.GetString(g_sPrefix, sizeof(g_sPrefix));
 	g_cvarNameChannel.GetString(g_sNameChannel, sizeof(g_sNameChannel));
 	g_cvarChatChannel.GetString(g_sChatChannel, sizeof(g_sChatChannel));
+	g_cvarConfigPath.GetString(g_sConfigPath, sizeof(g_sConfigPath));
 
-	//	RegAdminCmd("sm_testname", cmdTestName, ADMFLAG_ROOT);
+	BuildPath(Path_SM, g_sConfigPath, sizeof(g_sConfigPath), g_sConfigPath);
+	Format(g_sConfigPath, sizeof(g_sConfigPath), "%sregextriggers.cfg", g_sConfigPath);
+
+	if (!FileExists(g_sConfigPath)) {
+		SetFailState("Error finding file: %s", g_sConfigPath);
+	}
+
+	RegAdminCmd("sm_testname", cmdTestName, ADMFLAG_ROOT);
 
 	HookUserMessage(GetUserMessageId("SayText2"), hookUserMessage, true);
 	HookEvent("player_connect_client", eventPlayerConnect, EventHookMode_Pre);
@@ -147,13 +158,7 @@ public void OnPluginStart() {
 		}
 	}
 
-	g_cvarConfigPath.GetString(g_sConfigPath, sizeof(g_sConfigPath));
-	BuildPath(Path_SM, g_sConfigPath, sizeof(g_sConfigPath), g_sConfigPath);
-	Format(g_sConfigPath, sizeof(g_sConfigPath), "%sregextriggers.cfg", g_sConfigPath);
-
-	if (!FileExists(g_sConfigPath)) {
-		SetFailState("Error finding file: %s", g_sConfigPath);
-	}
+	g_rRegexCaptures = new Regex("\\\\\\d+");
 
 	// 5 second delay to ease OnPluginStart workload
 	CreateTimer(5.0, timerLoadExpressions);
@@ -323,13 +328,13 @@ public Action eventOnChangeName(Event event, const char[] name, bool dontBroadca
 
 // =================== Commands
 
-//	public Action cmdTestName(int client, int args) {
-//		char arg[128];
-//		GetCmdArgString(arg, sizeof(arg));
+public Action cmdTestName(int client, int args) {
+	char arg[128];
+	GetCmdArgString(arg, sizeof(arg));
 
-//		SetClientName(client, arg);
-//		return Plugin_Handled;
-//	}
+	SetClientName(client, arg);
+	return Plugin_Handled;
+}
 
 // =================== Timers
 
@@ -590,6 +595,95 @@ void ParseAndExecute(int client, char[] command, int size) {
 	ServerCommand(command);
 }
 
+bool LimitClient(int client, int type, const char[] sectionName, int limit, StringMap rules) {
+	if (type >= TRIGGER_COUNT) {
+		LogError("Invalid type %i. Expected in range of (0, %i)", type, TRIGGER_COUNT-1);
+		return false;
+	}
+
+	char buffer[128];
+	int clientLimitCount;
+	g_smClientLimits[type][client].GetValue(sectionName, clientLimitCount);
+	g_smClientLimits[type][client].SetValue(sectionName, ++clientLimitCount);
+
+	PrintColoredChat(
+		  client
+		, "\x01[%sFilter\x01] Max limit for this trigger is set to %s%i\x01. Current: %s%i."
+		, g_sRed
+		, g_sLightGreen
+		, limit
+		, g_sLightGreen
+		, clientLimitCount
+	);
+
+	float forgive;
+	if (rules.GetValue("forgive", forgive)) {
+		DataPack dp = new DataPack();
+		dp.WriteCell(GetClientUserId(client));
+		dp.WriteCell(type);
+		dp.WriteString(sectionName);
+		CreateTimer(forgive, timerForgive, dp);
+
+		PrintColoredChat(client, "\x01[%sFilter\x01] Forgiven in %s%0.1f\x01 seconds", g_sRed, g_sLightGreen, forgive);
+	}
+
+	if (clientLimitCount >= limit && rules.GetString("punish", buffer, sizeof(buffer))) {
+		PrintColoredChat(client, "\x01[%sFilter\x01] You have hit the limit of %s%i", g_sRed, g_sLightGreen, limit);
+
+		ParseAndExecute(client, buffer, sizeof(buffer));
+
+		if (!IsClientConnected(client)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void ReplaceText(Regex regex, int matchCount, ArrayList replaceList, char[] text, int size) {
+	int captureCount = regex.CaptureCount();
+	char[][][] matches = new char[matchCount][captureCount][MATCH_SIZE];
+
+	char buffer[MATCH_SIZE];
+	char buffer2[8];
+	// for each match
+	for (int j = 0; j < matchCount; j++) {
+		// Get random replacement text
+		char replacement[128];
+		replaceList.GetString(GetRandomInt(0, replaceList.Length-1), replacement, sizeof(replacement));
+
+		for (int k = 0; k < captureCount; k++) {
+			// Store all captures in dynamic char array, where 0 is the entire match
+			regex.GetSubString(k, matches[j][k], MATCH_SIZE, j);
+		}
+
+		// check if there are capture group characters in replacement text (eg:\0, \1, \2)
+		int charcount = g_rRegexCaptures.MatchAll(replacement);
+		// if there are ...
+		if (charcount > 0) {
+			// make a loop for each character
+			for (int k = 0; k < charcount; k++) {
+				// extract it from substring and store in buffer
+				g_rRegexCaptures.GetSubString(0, buffer, sizeof(buffer), k);
+
+				// copy buffer integer to buffer2
+				strcopy(buffer2, sizeof(buffer2), buffer[1]);
+
+				// convert to index
+				int index = StringToInt(buffer2);
+
+				if (index >= captureCount || index < 1) {
+					continue;
+				}
+
+				ReplaceString(replacement, sizeof(replacement), buffer, matches[j][index]);
+			}
+		}
+
+		ReplaceString(text, size, matches[j][0], replacement);
+	}
+}
+
 void AnnounceNameChange(int client, char[] newName, bool connecting = false) {
 	if (connecting) {
 		PrintColoredChatAll("%s connected", newName);
@@ -676,8 +770,8 @@ void CheckClientName(int client, char[] newName, int size, bool connecting = fal
 		strcopy(sectionName, sizeof(sectionName), nameSection.Name);
 
 		regexList = nameSection.Regexes;
-
-		for (int i = 0; i < regexList.Length; i++) {
+		int len = regexList.Length;
+		for (int i = 0; i < len; i++) {
 			regex = regexList.Get(i);
 
 			matchCount = regex.MatchAll(newName, errorcode);
@@ -694,59 +788,20 @@ void CheckClientName(int client, char[] newName, int size, bool connecting = fal
 			}
 
 			if (rules.GetValue("limit", limit)) {
-				int clientLimitCount;
-				g_smClientLimits[NAME][client].GetValue(sectionName, clientLimitCount);
-				g_smClientLimits[NAME][client].SetValue(sectionName, ++clientLimitCount);
+				bool result = LimitClient(client, NAME, sectionName, limit, rules);
 
-				PrintColoredChat(
-					  client
-					, "\x01[%sFilter\x01] Max limit for this trigger is set to  %s%i\x01. Current: %s%i."
-					, g_sRed
-					, g_sLightGreen
-					, limit
-					, g_sLightGreen
-					, clientLimitCount
-				);
-
-				float forgive;
-				if (rules.GetValue("forgive", forgive)) {
-					DataPack dp = new DataPack();
-					dp.WriteCell(GetClientUserId(client));
-					dp.WriteCell(NAME);
-					dp.WriteString(sectionName);
-					CreateTimer(forgive, timerForgive, dp);
-
-					PrintColoredChat(client, "\x01[%sFilter\x01] Forgiven in %s%0.1f\x01 seconds", g_sRed, g_sLightGreen, forgive);
-				}
-
-				if (clientLimitCount >= limit && rules.GetString("punish", buffer, sizeof(buffer))) {
-					PrintColoredChat(client, "\x01[%sFilter\x01] You have hit the limit of %s%i", g_sRed, g_sLightGreen, limit);
-
-					ParseAndExecute(client, buffer, sizeof(buffer));
-
-					if (!IsClientConnected(client)) {
-						return;
-					}
+				if (!result) {
+					return;
 				}
 			}
 
 			rules.GetValue("relay", relay);
-			PrintColoredChatAll("%i", relay);
 
 			if (rules.GetValue("replace", replaceList)) {
 				g_bChanged[client] = true;
-
-				i = -1;
 				replaced = true;
 
-				char textToReplace[128];
-				for (int j = 0; j < matchCount; j++) {
-					regex.GetSubString(0, textToReplace, sizeof(textToReplace), j);
-
-					char replacement[128];
-					replaceList.GetString(GetRandomInt(0, replaceList.Length-1), replacement, sizeof(replacement));
-					ReplaceString(newName, size, textToReplace, replacement);
-				}
+				ReplaceText(regex, matchCount, replaceList, newName, size);
 			}
 
 			if (newName[0] == '\0') {
@@ -756,6 +811,7 @@ void CheckClientName(int client, char[] newName, int size, bool connecting = fal
 			if (replaced) {
 				begin = -1;
 				replaced = false;
+				break;
 			}
 		}
 
@@ -865,35 +921,9 @@ Action CheckClientMessage(int client, const char[] command, const char[] text) {
 			}
 
 			if (rules.GetValue("limit", limit)) {
-				int clientLimitCount;
-				g_smClientLimits[CHAT][client].GetValue(sectionName, clientLimitCount);
-				g_smClientLimits[CHAT][client].SetValue(sectionName, ++clientLimitCount);
+				bool result = LimitClient(client, CHAT, sectionName, limit, rules);
 
-				PrintColoredChat(
-					  client
-					, "\x01[%sFilter\x01] Max limit for this trigger is set to %s%i\x01. Current: %s%i\x01."
-					, g_sRed
-					, g_sLightGreen
-					, limit
-					, g_sLightGreen
-					, clientLimitCount
-				);
-
-				float forgive;
-				if (rules.GetValue("forgive", forgive)) {
-					DataPack dp = new DataPack();
-					dp.WriteCell(GetClientUserId(client));
-					dp.WriteCell(CHAT);
-					dp.WriteString(sectionName);
-					CreateTimer(forgive, timerForgive, dp);
-
-					PrintColoredChat(client, "\x01[%sFilter\x01] Forgiven in %s%0.1f seconds", g_sRed, g_sLightGreen, forgive);
-				}
-
-				if (clientLimitCount >= limit && rules.GetString("punish", buffer, sizeof(buffer))) {
-					PrintColoredChat(client, "\x01[%sFilter\x01] You have hit the limit of %s%i", g_sRed, g_sLightGreen, limit);
-
-					ParseAndExecute(client, buffer, sizeof(buffer));
+				if (!result) {
 					return Plugin_Handled;
 				}
 			}
@@ -918,28 +948,21 @@ Action CheckClientMessage(int client, const char[] command, const char[] text) {
 			}
 
 			if (rules.GetValue("replace", replaceList)) {
-				char textToReplace[64];
-				for (int j = 0; j < matchCount; j++) {
-					regex.GetSubString(0, textToReplace, sizeof(textToReplace), j);
-
-					char replacement[128];
-					replaceList.GetString(GetRandomInt(0, replaceList.Length-1), replacement, sizeof(replacement));
-
-					ReplaceString(message, sizeof(message), textToReplace, replacement);
-				}
-
 				replaced = true;
 				changed = true;
+
+				ReplaceText(regex, matchCount, replaceList, message, sizeof(message));
 			}
 
 			if (message[0] == '\0') {
 				return Plugin_Handled;
 			}
-		}
 
-		if (replaced) {
-			begin = -1;
-			replaced = false;
+			if (replaced) {
+				begin = -1;
+				replaced = false;
+				break;
+			}
 		}
 
 		++begin;
@@ -1044,35 +1067,9 @@ Action CheckClientCommand(int client, char[] cmd) {
 			}
 
 			if (rules.GetValue("limit", limit)) {
-				int clientLimitCount;
-				g_smClientLimits[COMMAND][client].GetValue(sectionName, clientLimitCount);
-				g_smClientLimits[COMMAND][client].SetValue(sectionName, ++clientLimitCount);
+				bool result = LimitClient(client, COMMAND, sectionName, limit, rules);
 
-				PrintColoredChat(
-					  client
-					, "\x01[%sFilter\x01] Max limit for this trigger is set to %s%i\x01. Current: %s%i\x01."
-					, g_sRed
-					, g_sLightGreen
-					, limit
-					, g_sLightGreen
-					, clientLimitCount
-				);
-
-				float forgive;
-				if (rules.GetValue("forgive", forgive)) {
-					DataPack dp = new DataPack();
-					dp.WriteCell(GetClientUserId(client));
-					dp.WriteCell(COMMAND);
-					dp.WriteString(sectionName);
-					CreateTimer(forgive, timerForgive, dp);
-
-					PrintColoredChat(client, "\x01[%sFilter\x01] Forgiven in %s%0.1f seconds", g_sRed, g_sLightGreen, forgive);
-				}
-
-				if (clientLimitCount >= limit && rules.GetString("punish", buffer, sizeof(buffer))) {
-					PrintColoredChat(client, "\x01[%sFilter\x01] You have hit the limit of %s%i", g_sRed, g_sLightGreen, limit);
-
-					ParseAndExecute(client, buffer, sizeof(buffer));
+				if (!result) {
 					return Plugin_Handled;
 				}
 			}
@@ -1101,25 +1098,18 @@ Action CheckClientCommand(int client, char[] cmd) {
 				replaced = true;
 				changed = true;
 
-				char textToReplace[128];
-				for (int j = 0; j < matchCount; j++) {
-					regex.GetSubString(0, textToReplace, sizeof(textToReplace), j);
-
-					char replacement[128];
-					replaceList.GetString(GetRandomInt(0, replaceList.Length-1), replacement, sizeof(replacement));
-					ReplaceString(command, sizeof(command), textToReplace, replacement);
-				}
+				ReplaceText(regex, matchCount, replaceList, command, sizeof(command));
 			}
 
 			if (command[0] == '\0') {
 				return Plugin_Handled;
 			}
 
-		}
-
-		if (replaced) {
-			begin = -1;
-			replaced = false;
+			if (replaced) {
+				begin = -1;
+				replaced = false;
+				break;
+			}
 		}
 
 		begin++;
