@@ -70,7 +70,7 @@ Allows more flexibility with limiting. It might be ok to advertise once every fi
 **Replace:** Replaces matched text with a value.  
 `"replace" "with"`  
 Will replace the pattern's matches with "with", and check everything again.  
-Supports use of capture groups greater than 0 by using \#, such as \1 or \2  
+Supports use of capture groups greater than 0 by using \\#, such as \\1 or \\2  
 
 **Relay:** Relays information to the related discord channel  
 `"relay" "1"`  
