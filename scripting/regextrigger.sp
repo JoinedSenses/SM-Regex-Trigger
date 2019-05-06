@@ -13,9 +13,9 @@
 #include <sourcemod>
 #include <sdktools>
 #include <regex>
-#include <tf2>
 #include <color_literals>
 #undef REQUIRE_PLUGIN
+#include <tf2>
 #include <sourceirc>
 #include <discord>
 #define REQUIRE_PLUGIN
