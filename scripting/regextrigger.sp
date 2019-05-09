@@ -2,13 +2,14 @@
 #pragma newdecls required
 
 #define PLUGIN_DESCRIPTION "Regex triggers for names, chat, and commands."
-#define PLUGIN_VERSION "2.5.1"
+#define PLUGIN_VERSION "2.5.2"
 #define MAX_EXPRESSION_LENGTH 512
 #define MATCH_SIZE 64
 
 // Define created to use settings specifically for my own servers.
 // allows easier release of this plugin.
 //	#define CUSTOM
+//	#define DEBUG
 
 #include <sourcemod>
 #include <sdktools>
@@ -38,7 +39,8 @@ ConVar
 	, g_cvarUnnamedPrefix
 	, g_cvarIRC_Enabled
 	, g_cvarNameChannel
-	, g_cvarChatChannel;
+	, g_cvarChatChannel
+	, g_cvarHostName;
 Regex
 	  g_rRegexCaptures;
 StringMap
@@ -116,6 +118,7 @@ public void OnPluginStart() {
 	g_cvarCheckCommands = CreateConVar("sm_regex_check_commands", "1", "Filter out and check commands.", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_cvarCheckNames = CreateConVar("sm_regex_check_names", "1", "Filter out and check names.", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_cvarUnnamedPrefix = CreateConVar("sm_regex_prefix", "", "Prefix for random name when player has become unnamed", FCVAR_NONE);
+	g_cvarHostName = FindConVar("hostname");
 
 	// IRC
 	g_cvarIRC_Enabled = CreateConVar("sm_regex_irc_enabled", "0", "Enable IRC relay for SourceIRC. Sends messages to flagged channels", FCVAR_NONE, true, 0.0, true, 1.0);
@@ -127,6 +130,7 @@ public void OnPluginStart() {
 	g_cvarUnnamedPrefix.AddChangeHook(cvarChanged_Prefix);
 	g_cvarNameChannel.AddChangeHook(cvarChanged_NameChannel);
 	g_cvarChatChannel.AddChangeHook(cvarChanged_ChatChannel);
+	g_cvarHostName.AddChangeHook(cvarChanged_Hostname);
 
 	AutoExecConfig();
 
@@ -142,7 +146,9 @@ public void OnPluginStart() {
 		SetFailState("Error finding file: %s", g_sConfigPath);
 	}
 
+#if defined DEBUG
 	RegAdminCmd("sm_testname", cmdTestName, ADMFLAG_ROOT);
+#endif
 
 	HookUserMessage(GetUserMessageId("SayText2"), hookUserMessage, true);
 	HookEvent("player_connect_client", eventPlayerConnect, EventHookMode_Pre);
@@ -183,24 +189,22 @@ public void OnPluginStart() {
 
 public void OnAllPluginsLoaded() {
 	if ((g_bDiscord = LibraryExists("discord"))) {
-
-		// The below code block is used specifically for my servers. It's used to format the hostname
-	 	// for discord relay. If you want to modify the hostname used for discord relay, do it here.
-#if defined CUSTOM
 		char hostname[64];
-		FindConVar("hostname").GetString(hostname, sizeof(hostname));
+		g_cvarHostName.GetString(hostname, sizeof(hostname));
 
+#if defined CUSTOM
 		int index = FindCharInString(hostname, '[');
 		if (index > 1) {
 			Format(g_sHostName, sizeof(g_sHostName), "%s", hostname[index-1]);
 		}
 		else {
-			Format(g_sHostName, sizeof(g_sHostName), hostname);
+			strcopy(g_sHostName, sizeof(g_sHostName), hostname);
 		}
 #else
-		FindConVar("hostname").GetString(g_sHostName, sizeof(g_sHostName));
+		strcopy(g_sHostName, sizeof(g_sHostName), hostname);
 #endif
 	}
+	
 	g_bIRC = LibraryExists("sourceirc");
 }
 
@@ -274,6 +278,22 @@ void cvarChanged_ChatChannel(ConVar convar, const char[] oldValue, const char[] 
 	strcopy(g_sChatChannel, sizeof(g_sChatChannel), newValue);
 }
 
+void cvarChanged_Hostname(ConVar convar, const char[] oldValue, const char[] newValue) {
+	// The below code block is used specifically for my servers. It's used to format the hostname
+	// for discord relay. If you want to modify the hostname used for discord relay, do it here.
+#if defined CUSTOM
+		int index = FindCharInString(newValue, '[');
+		if (index > 1) {
+			Format(g_sHostName, sizeof(g_sHostName), "%s", newValue[index-1]);
+		}
+		else {
+			strcopy(g_sHostName, sizeof(g_sHostName), newValue);
+		}
+#else
+		strcopy(g_sHostName, sizeof(g_sHostName), newValue);
+#endif
+}
+
 // =================== Hooks
 
 public Action eventPlayerConnect(Event event, const char[] name, bool dontBroadcast) {
@@ -328,7 +348,7 @@ public Action eventOnChangeName(Event event, const char[] name, bool dontBroadca
 }
 
 // =================== Commands
-
+#if defined DEBUG
 public Action cmdTestName(int client, int args) {
 	char arg[128];
 	GetCmdArgString(arg, sizeof(arg));
@@ -336,7 +356,7 @@ public Action cmdTestName(int client, int args) {
 	SetClientName(client, arg);
 	return Plugin_Handled;
 }
-
+#endif
 // =================== Timers
 
 Action timerLoadExpressions(Handle timer) {
