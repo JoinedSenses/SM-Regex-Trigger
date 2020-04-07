@@ -2,14 +2,14 @@
 #pragma newdecls required
 
 #define PLUGIN_DESCRIPTION "Regex triggers for names, chat, and commands."
-#define PLUGIN_VERSION "2.5.2"
+#define PLUGIN_VERSION "2.5.3"
 #define MAX_EXPRESSION_LENGTH 512
 #define MATCH_SIZE 64
 
 // Define created to use settings specifically for my own servers.
 // allows easier release of this plugin.
-//	#define CUSTOM
-//	#define DEBUG
+	// #define CUSTOM
+	// #define DEBUG
 
 #include <sourcemod>
 #include <sdktools>
@@ -180,8 +180,12 @@ public void OnPluginStart() {
 	if (g_bLate) {
 		for (int i = 1; i <= MaxClients; i++) {
 			if (IsValidClient(i)) {
-				Format(g_sOldName[i], sizeof(g_sOldName[]), "%N", i);
-				Format(g_sUnfilteredName[i], sizeof(g_sUnfilteredName[]), "%N", i);
+				FormatEx(g_sOldName[i], sizeof(g_sOldName[]), "%N", i);
+				FormatEx(g_sUnfilteredName[i], sizeof(g_sUnfilteredName[]), "%N", i);
+
+				if (IsClientAuthorized(i)) {
+					OnClientPostAdminCheck(i);
+				}
 			}
 		}
 	}
@@ -195,7 +199,7 @@ public void OnAllPluginsLoaded() {
 #if defined CUSTOM
 		int index = FindCharInString(hostname, '[');
 		if (index > 1) {
-			Format(g_sHostName, sizeof(g_sHostName), "%s", hostname[index-1]);
+			strcopy(g_sHostName, sizeof(g_sHostName), hostname[index-1]);
 		}
 		else {
 			strcopy(g_sHostName, sizeof(g_sHostName), hostname);
@@ -214,7 +218,7 @@ public void OnMapEnd() {
 	}
 }
 
-public void OnClientAuthorized(int client, const char[] auth) {
+public void OnClientPostAdminCheck(int client) {
 	if (!g_cvarStatus.BoolValue) {
 		return;
 	}
@@ -604,10 +608,10 @@ void ClearData(int client) {
 
 void ParseAndExecute(int client, char[] command, int size) {
 	char buffer[32];
-	FormatEx(buffer, sizeof(buffer), "%i", GetClientUserId(client));
+	IntToString(GetClientUserId(client), buffer, sizeof buffer);
 	ReplaceString(command, size, "%u", buffer);
 
-	FormatEx(buffer, sizeof(buffer), "%i", client);
+	IntToString(client, buffer, sizeof buffer);
 	ReplaceString(command, size, "%i", buffer);
 
 	FormatEx(buffer, sizeof(buffer), "%N", client);
@@ -739,8 +743,8 @@ void ConnectNameCheck(int client) {
 	}
 
 	char clientName[MAX_NAME_LENGTH];
-	Format(clientName, sizeof(clientName), "%N", client);
-	Format(g_sUnfilteredName[client], sizeof(g_sUnfilteredName[]), "%N", client);
+	FormatEx(clientName, sizeof(clientName), "%N", client);
+	FormatEx(g_sUnfilteredName[client], sizeof(g_sUnfilteredName[]), "%N", client);
 
 	CheckClientName(client, clientName, sizeof(clientName), true);
 }
