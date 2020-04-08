@@ -182,10 +182,6 @@ public void OnPluginStart() {
 			if (IsValidClient(i)) {
 				FormatEx(g_sOldName[i], sizeof(g_sOldName[]), "%N", i);
 				FormatEx(g_sUnfilteredName[i], sizeof(g_sUnfilteredName[]), "%N", i);
-
-				if (IsClientAuthorized(i)) {
-					OnClientPostAdminCheck(i);
-				}
 			}
 		}
 	}
