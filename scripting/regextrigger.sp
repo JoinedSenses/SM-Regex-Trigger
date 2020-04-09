@@ -2,7 +2,7 @@
 #pragma newdecls required
 
 #define PLUGIN_DESCRIPTION "Regex triggers for names, chat, and commands."
-#define PLUGIN_VERSION "2.5.3"
+#define PLUGIN_VERSION "2.5.4"
 #define MAX_EXPRESSION_LENGTH 512
 #define MATCH_SIZE 64
 
@@ -208,12 +208,6 @@ public void OnAllPluginsLoaded() {
 	g_bIRC = LibraryExists("sourceirc");
 }
 
-public void OnMapEnd() {
-	for (int i = 1; i <= MaxClients; i++) {
-		ClearData(i);
-	}
-}
-
 public void OnClientPostAdminCheck(int client) {
 	if (!g_cvarStatus.BoolValue) {
 		return;
@@ -329,8 +323,8 @@ public Action eventOnChangeName(Event event, const char[] name, bool dontBroadca
 	char newName[MAX_NAME_LENGTH];
 	event.GetString("newname", newName, sizeof(newName));
 
-	// If stored old name or current name equal to new name, don't do anything.
-	if (StrEqual(g_sOldName[client], newName) || StrEqual(currentName, newName)) {
+	// If old name is empty (initial connect), stored old name, or current name equal to new name, don't do anything.
+	if (!g_sOldName[client][0] || StrEqual(g_sOldName[client], newName) || StrEqual(currentName, newName)) {
 		g_bChanged[client] = false;
 		return Plugin_Continue;
 	}
@@ -746,7 +740,7 @@ void ConnectNameCheck(int client) {
 }
 
 void CheckClientName(int client, char[] newName, int size, bool connecting = false) {
-	if (!(0 < client <= MaxClients) || IsFakeClient(client)) {
+	if (client < 1 || client > MaxClients || IsFakeClient(client)) {
 		return;
 	}
 
@@ -862,13 +856,6 @@ void CheckClientName(int client, char[] newName, int size, bool connecting = fal
 		}
 
 		SetClientName(client, newName);
-
-		// If client is not in game, SetClientName does not retrigger name change event.
-		// so it is safe to go ahead and announce the name change.
-		if (connecting && !IsClientInGame(client)) {
-			AnnounceNameChange(client, newName, connecting);
-			return;
-		}
 	}
 	else if (relay && g_bDiscord) {
 		Discord_EscapeString(g_sUnfilteredName[client], sizeof(g_sUnfilteredName[]));
