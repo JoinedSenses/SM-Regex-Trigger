@@ -2,14 +2,14 @@
 #pragma newdecls required
 
 #define PLUGIN_DESCRIPTION "Regex triggers for names, chat, and commands."
-#define PLUGIN_VERSION "2.5.4"
+#define PLUGIN_VERSION "2.5.5"
 #define MAX_EXPRESSION_LENGTH 512
 #define MATCH_SIZE 64
 
 // Define created to use settings specifically for my own servers.
 // allows easier release of this plugin.
-	// #define CUSTOM
-	// #define DEBUG
+// #define CUSTOM
+// #define DEBUG
 
 #include <sourcemod>
 #include <sdktools>
@@ -22,71 +22,71 @@
 #define REQUIRE_PLUGIN
 
 enum {
-	  NAME = 0
-	, CHAT
-	, COMMAND
-	, TRIGGER_COUNT
+	NAME = 0, 
+	CHAT, 
+	COMMAND, 
+	TRIGGER_COUNT
 }
 
 ArrayList
-	  g_aSections[TRIGGER_COUNT];
+	g_aSections[TRIGGER_COUNT];
 ConVar
-	  g_cvarStatus
-	, g_cvarConfigPath
-	, g_cvarCheckChat
-	, g_cvarCheckCommands
-	, g_cvarCheckNames
-	, g_cvarUnnamedPrefix
-	, g_cvarIRC_Enabled
-	, g_cvarNameChannel
-	, g_cvarChatChannel
-	, g_cvarHostName;
+	g_cvarStatus,
+	g_cvarConfigPath,
+	g_cvarCheckChat,
+	g_cvarCheckCommands,
+	g_cvarCheckNames,
+	g_cvarUnnamedPrefix,
+	g_cvarIRC_Enabled,
+	g_cvarNameChannel,
+	g_cvarChatChannel,
+	g_cvarHostName;
 Regex
-	  g_rRegexCaptures;
+	g_rRegexCaptures;
 StringMap
-	  g_smClientLimits[TRIGGER_COUNT][MAXPLAYERS+1];
+	g_smClientLimits[TRIGGER_COUNT][MAXPLAYERS+1];
 bool
-	  g_bLate
-	, g_bChanged[MAXPLAYERS+1]
-	, g_bDiscord
-	, g_bIRC;
+	g_bLate,
+	g_bChanged[MAXPLAYERS+1],
+	g_bDiscord,
+	g_bIRC;
 char
-	  g_sConfigPath[PLATFORM_MAX_PATH]
-	, g_sNameChannel[128]
-	, g_sChatChannel[128]
-	, g_sOldName[MAXPLAYERS+1][MAX_NAME_LENGTH]
-	, g_sUnfilteredName[MAXPLAYERS+1][MAX_NAME_LENGTH]
-	, g_sPrefix[MAX_NAME_LENGTH]
-	, g_sHostName[32]
-	, g_sRed[12] = "\x07FF4040"
-	, g_sBlue[12] = "\x0799CCFF"
-	, g_sLightGreen[12] = "\x0799FF99";
+	g_sConfigPath[PLATFORM_MAX_PATH],
+	g_sNameChannel[128],
+	g_sChatChannel[128],
+	g_sOldName[MAXPLAYERS+1][MAX_NAME_LENGTH],
+	g_sUnfilteredName[MAXPLAYERS+1][MAX_NAME_LENGTH],
+	g_sPrefix[MAX_NAME_LENGTH],
+	g_sHostName[32],
+	g_sRed[12] = "\x07FF4040",
+	g_sBlue[12] = "\x0799CCFF",
+	g_sLightGreen[12] = "\x0799FF99";
 EngineVersion
-	  g_EngineVersion;
+	g_EngineVersion;
 
 char g_sRandomNames[][] = {
-	  "Steve"
-	, "John"
-	, "James"
-	, "Robert"
-	, "David"
-	, "Mike"
-	, "Daniel"
-	, "Kevin"
-	, "Ryan"
-	, "Gary"
-	, "Larry"
-	, "Frank"
-	, "Jerry"
-	, "Greg"
-	, "Doug"
-	, "Carl"
-	, "Gerald"
-	, "Goose"
-	, "Billy"
-	, "Bobby"
-	, "Brooke"
-	, "Bort"
+	"Steve",
+	"John",
+	"James",
+	"Robert",
+	"David",
+	"Mike",
+	"Daniel",
+	"Kevin",
+	"Ryan",
+	"Gary",
+	"Larry",
+	"Frank",
+	"Jerry",
+	"Greg",
+	"Doug",
+	"Carl",
+	"Gerald",
+	"Goose",
+	"Billy",
+	"Bobby",
+	"Brooke",
+	"Bort"
 };
 
 enum struct Section {
@@ -179,7 +179,7 @@ public void OnPluginStart() {
 
 	if (g_bLate) {
 		for (int i = 1; i <= MaxClients; i++) {
-			if (IsValidClient(i)) {
+			if (IsClientConnected(i) && !IsFakeClient(i)) {
 				FormatEx(g_sOldName[i], sizeof(g_sOldName[]), "%N", i);
 				FormatEx(g_sUnfilteredName[i], sizeof(g_sUnfilteredName[]), "%N", i);
 			}
@@ -233,7 +233,7 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 	}
 #endif
 	
-	if (strlen(args) == 0 || client == 0) {
+	if (!args[0] || !client) {
 		return Plugin_Continue;
 	}
 
@@ -248,7 +248,7 @@ public Action OnClientCommand(int client, int argc) {
 	char command[256];
 	GetCmdArgString(command, sizeof(command));
 	
-	if (strlen(command) == 0 || StrContains(command, "say") == 0) {
+	if (!command[0] || StrContains(command, "say") == 0) {
 		return Plugin_Continue;
 	}
 
@@ -355,6 +355,8 @@ public Action cmdTestName(int client, int args) {
 
 Action timerLoadExpressions(Handle timer) {
 	LoadRegexConfig(g_sConfigPath);
+
+	PrintToChatAll("Regex config loaded.");
 }
 
 Action timerForgive(Handle timer, DataPack dp) {
@@ -452,6 +454,9 @@ void LoadRegexConfig(const char[] config) {
 				kv.GetString(NULL_STRING, buffer, sizeof(buffer));
 				UpdateRuleValue(section, key, ReadFlagString(buffer));
 			}
+			else {
+				LogError("Invalid key while parsing config. Section: %s Key: %s", sectionName, key);
+			}
 
 		} while (kv.GotoNextKey(false));
 
@@ -529,16 +534,15 @@ int ParseExpression(const char[] key, char[] expression, int size) {
 			LogError("Regex Filter line malformed: %s", key);
 			return -1;
 		}
-		else {
-			expression[b] = '\0';
-			expression[c] = '\0';
-			flags = FindRegexFlags(expression[b + 1]);
-			
-			TrimString(expression);
-			
-			if (a > 2 && expression[0] == '\'') {
-				strcopy(expression, strlen(expression) - 1, expression[1]);
-			}
+
+		expression[b] = '\0';
+		expression[c] = '\0';
+		flags = FindRegexFlags(expression[b + 1]);
+		
+		TrimString(expression);
+		
+		if (a > 2 && expression[0] == '\'') {
+			strcopy(expression, strlen(expression) - 1, expression[1]);
 		}
 	}
 	
@@ -581,10 +585,6 @@ int FindRegexFlags(const char[] flags) {
 }
 
 // =================== Internal Functions
-
-bool IsValidClient(int client) {
-	return (0 < client <= MaxClients && IsClientConnected(client) && !IsFakeClient(client));
-}
 
 void ClearData(int client) {
 	g_bChanged[client] = false;
