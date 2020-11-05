@@ -2,7 +2,7 @@
 #pragma newdecls required
 
 #define PLUGIN_DESCRIPTION "Regex triggers for names, chat, and commands."
-#define PLUGIN_VERSION "2.5.5"
+#define PLUGIN_VERSION "2.5.6"
 #define MAX_EXPRESSION_LENGTH 512
 #define MATCH_SIZE 64
 
@@ -193,13 +193,20 @@ public void OnAllPluginsLoaded() {
 		g_cvarHostName.GetString(hostname, sizeof(hostname));
 
 #if defined CUSTOM
-		int index = FindCharInString(hostname, '[');
-		if (index > 1) {
-			strcopy(g_sHostName, sizeof(g_sHostName), hostname[index-1]);
+		int index1 = FindCharInString(hostname, '[');
+		int index2;
+		if (index1 != -1) {
+			index2 = FindCharInString(hostname, '[', true);
+			if (index2 == index1) {
+				index2 = strlen(hostname) - 1;
+			}
 		}
 		else {
-			strcopy(g_sHostName, sizeof(g_sHostName), hostname);
+			index1 = 0;
+			index2 = strlen(hostname) - 1;
 		}
+
+		strcopy(g_sHostName, index2 - index1 + 1, hostname[index1]);
 #else
 		strcopy(g_sHostName, sizeof(g_sHostName), hostname);
 #endif
