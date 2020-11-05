@@ -25,7 +25,8 @@ sm_regex_config_path "configs/regextriggers/" Location to store the regex filter
 sm_regex_check_chat "1" Filter out and check chat messages.  
 sm_regex_check_commands "1" Filter out and check commands.  
 sm_regex_check_names "1" Filter out and check names.  
-sm_regex_prefix "" "Prefix for random name when player has become unnamed  
+sm_regex_prefix "" Prefix for random name when player has become unnamed  
+sm_regex_server_name "No name set!" Name to display in discord when relaying  
 sm_regex_irc_enabled "0" Enable IRC relay for SourceIRC. Sends messages to flagged channels  
 sm_regex_channelname "" Key name from discord.cfg for name relay  
 sm_regex_channelchat "" Key name from discord.cfg for chat relay  

@@ -40,7 +40,7 @@ ConVar
 	g_cvarIRC_Enabled,
 	g_cvarNameChannel,
 	g_cvarChatChannel,
-	g_cvarHostName;
+	g_cvarServerName;
 Regex
 	g_rRegexCaptures;
 StringMap
@@ -57,7 +57,7 @@ char
 	g_sOldName[MAXPLAYERS+1][MAX_NAME_LENGTH],
 	g_sUnfilteredName[MAXPLAYERS+1][MAX_NAME_LENGTH],
 	g_sPrefix[MAX_NAME_LENGTH],
-	g_sHostName[32],
+	g_sServerName[32],
 	g_sRed[12] = "\x07FF4040",
 	g_sBlue[12] = "\x0799CCFF",
 	g_sLightGreen[12] = "\x0799FF99";
@@ -118,7 +118,7 @@ public void OnPluginStart() {
 	g_cvarCheckCommands = CreateConVar("sm_regex_check_commands", "1", "Filter out and check commands.", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_cvarCheckNames = CreateConVar("sm_regex_check_names", "1", "Filter out and check names.", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_cvarUnnamedPrefix = CreateConVar("sm_regex_prefix", "", "Prefix for random name when player has become unnamed", FCVAR_NONE);
-	g_cvarHostName = FindConVar("hostname");
+	g_cvarServerName = CreateConVar("sm_regex_server_name", "No name set!", "Name to display in discord when relaying", FCVAR_NONE);
 
 	// IRC
 	g_cvarIRC_Enabled = CreateConVar("sm_regex_irc_enabled", "0", "Enable IRC relay for SourceIRC. Sends messages to flagged channels", FCVAR_NONE, true, 0.0, true, 1.0);
@@ -130,7 +130,7 @@ public void OnPluginStart() {
 	g_cvarUnnamedPrefix.AddChangeHook(cvarChanged_Prefix);
 	g_cvarNameChannel.AddChangeHook(cvarChanged_NameChannel);
 	g_cvarChatChannel.AddChangeHook(cvarChanged_ChatChannel);
-	g_cvarHostName.AddChangeHook(cvarChanged_Hostname);
+	g_cvarServerName.AddChangeHook(cvarChanged_ServerName);
 
 	AutoExecConfig();
 
@@ -138,6 +138,7 @@ public void OnPluginStart() {
 	g_cvarNameChannel.GetString(g_sNameChannel, sizeof(g_sNameChannel));
 	g_cvarChatChannel.GetString(g_sChatChannel, sizeof(g_sChatChannel));
 	g_cvarConfigPath.GetString(g_sConfigPath, sizeof(g_sConfigPath));
+	g_cvarServerName.GetString(g_sServerName, sizeof g_sServerName);
 
 	BuildPath(Path_SM, g_sConfigPath, sizeof(g_sConfigPath), g_sConfigPath);
 	Format(g_sConfigPath, sizeof(g_sConfigPath), "%sregextriggers.cfg", g_sConfigPath);
@@ -188,31 +189,26 @@ public void OnPluginStart() {
 }
 
 public void OnAllPluginsLoaded() {
-	if ((g_bDiscord = LibraryExists("discord"))) {
-		char hostname[64];
-		g_cvarHostName.GetString(hostname, sizeof(hostname));
-
-#if defined CUSTOM
-		int index1 = FindCharInString(hostname, '[');
-		int index2;
-		if (index1 != -1) {
-			index2 = FindCharInString(hostname, '[', true);
-			if (index2 == index1) {
-				index2 = strlen(hostname) - 1;
-			}
-		}
-		else {
-			index1 = 0;
-			index2 = strlen(hostname) - 1;
-		}
-
-		strcopy(g_sHostName, index2 - index1 + 1, hostname[index1]);
-#else
-		strcopy(g_sHostName, sizeof(g_sHostName), hostname);
-#endif
-	}
-	
+	g_bDiscord = LibraryExists("discord");
 	g_bIRC = LibraryExists("sourceirc");
+}
+
+public void OnLibraryAdded(const char[] name) {
+	if (StrEqual(name, "discord")) {
+		g_bDiscord = true;
+	}
+	else if (StrEqual(name, "sourceirc")) {
+		g_bIRC = true;
+	}
+}
+
+public void OnLibraryRemoved(const char[] name) {
+	if (StrEqual(name, "discord")) {
+		g_bDiscord = false;
+	}
+	else if (StrEqual(name, "sourceirc")) {
+		g_bIRC = false;
+	}
 }
 
 public void OnClientPostAdminCheck(int client) {
@@ -279,20 +275,8 @@ void cvarChanged_ChatChannel(ConVar convar, const char[] oldValue, const char[] 
 	strcopy(g_sChatChannel, sizeof(g_sChatChannel), newValue);
 }
 
-void cvarChanged_Hostname(ConVar convar, const char[] oldValue, const char[] newValue) {
-	// The below code block is used specifically for my servers. It's used to format the hostname
-	// for discord relay. If you want to modify the hostname used for discord relay, do it here.
-#if defined CUSTOM
-		int index = FindCharInString(newValue, '[');
-		if (index > 1) {
-			Format(g_sHostName, sizeof(g_sHostName), "%s", newValue[index-1]);
-		}
-		else {
-			strcopy(g_sHostName, sizeof(g_sHostName), newValue);
-		}
-#else
-		strcopy(g_sHostName, sizeof(g_sHostName), newValue);
-#endif
+void cvarChanged_ServerName(ConVar convar, const char[] oldValue, const char[] newValue) {
+	strcopy(g_sServerName, sizeof(g_sServerName), newValue);
 }
 
 // =================== Hooks
@@ -858,7 +842,7 @@ void CheckClientName(int client, char[] newName, int size, bool connecting = fal
 			Discord_EscapeString(g_sUnfilteredName[client], sizeof(g_sUnfilteredName[]));
 			Discord_EscapeString(newName, MAX_NAME_LENGTH);
 			char output[192];
-			Format(output, sizeof(output), "**%s** `%s`  -->  `%s`", g_sHostName, g_sUnfilteredName[client], newName);
+			Format(output, sizeof(output), "**%s** `%s`  -->  `%s`", g_sServerName, g_sUnfilteredName[client], newName);
 			Discord_SendMessage(g_sNameChannel, output);
 		}
 
@@ -868,7 +852,7 @@ void CheckClientName(int client, char[] newName, int size, bool connecting = fal
 		Discord_EscapeString(g_sUnfilteredName[client], sizeof(g_sUnfilteredName[]));
 		Discord_EscapeString(newName, MAX_NAME_LENGTH);
 		char output[192];
-		Format(output, sizeof(output), "**%s** `%s`  -->  `%s`", g_sHostName, g_sUnfilteredName[client], newName);
+		Format(output, sizeof(output), "**%s** `%s`  -->  `%s`", g_sServerName, g_sUnfilteredName[client], newName);
 		Discord_SendMessage(g_sNameChannel, output);
 	}
 
@@ -955,10 +939,10 @@ Action CheckClientMessage(int client, const char[] command, const char[] text) {
 
 					char output[256];
 					if (changed) {
-						Format(output, sizeof(output), "**%s** %s: `%s` --> `%s` **Blocked**", g_sHostName, clientName, text, message);
+						Format(output, sizeof(output), "**%s** %s: `%s` --> `%s` **Blocked**", g_sServerName, clientName, text, message);
 					}
 					else {
-						Format(output, sizeof(output), "**%s** %s: `%s`", g_sHostName, clientName, message);
+						Format(output, sizeof(output), "**%s** %s: `%s`", g_sServerName, clientName, message);
 					}
 
 					Discord_SendMessage(g_sChatChannel, output);
@@ -1001,7 +985,7 @@ Action CheckClientMessage(int client, const char[] command, const char[] text) {
 			Discord_EscapeString(message, sizeof(message));
 
 			char output[256];
-			Format(output, sizeof(output), "**%s** %s: `%s`  -->  `%s`", g_sHostName, clientName, originalmessage, message);
+			Format(output, sizeof(output), "**%s** %s: `%s`  -->  `%s`", g_sServerName, clientName, originalmessage, message);
 
 			Discord_SendMessage(g_sChatChannel, output);
 		}
@@ -1018,7 +1002,7 @@ Action CheckClientMessage(int client, const char[] command, const char[] text) {
 		Discord_EscapeString(message, sizeof(message));
 
 		char output[256];
-		Format(output, sizeof(output), "**%s** %s: `%s`", g_sHostName, clientName, message);
+		Format(output, sizeof(output), "**%s** %s: `%s`", g_sServerName, clientName, message);
 
 		Discord_SendMessage(g_sChatChannel, output);
 	}
@@ -1106,10 +1090,10 @@ Action CheckClientCommand(int client, char[] cmd) {
 
 					char output[256];
 					if (changed) {
-						Format(output, sizeof(output), "**%s** Command| %s: `%s` --> `%s` **Blocked**", g_sHostName, clientName, cmd, command);
+						Format(output, sizeof(output), "**%s** Command| %s: `%s` --> `%s` **Blocked**", g_sServerName, clientName, cmd, command);
 					}
 					else {
-						Format(output, sizeof(output), "**%s** Command| %s: `%s`", g_sHostName, clientName, command);
+						Format(output, sizeof(output), "**%s** Command| %s: `%s`", g_sServerName, clientName, command);
 					}
 
 					Discord_SendMessage(g_sChatChannel, output);
@@ -1153,7 +1137,7 @@ Action CheckClientCommand(int client, char[] cmd) {
 			Discord_EscapeString(command, sizeof(command));
 
 			char output[256];
-			Format(output, sizeof(output), "**%s** Command| %s: `%s`  -->  `%s`", g_sHostName, clientName, originalCommand, command);
+			Format(output, sizeof(output), "**%s** Command| %s: `%s`  -->  `%s`", g_sServerName, clientName, originalCommand, command);
 
 			Discord_SendMessage(g_sChatChannel, output);
 		}
@@ -1170,7 +1154,7 @@ Action CheckClientCommand(int client, char[] cmd) {
 		Discord_EscapeString(command, sizeof(command));
 
 		char output[256];
-		Format(output, sizeof(output), "**%s** Command| %s: `%s`", g_sHostName, clientName, command);
+		Format(output, sizeof(output), "**%s** Command| %s: `%s`", g_sServerName, clientName, command);
 
 		Discord_SendMessage(g_sChatChannel, output);
 	}
