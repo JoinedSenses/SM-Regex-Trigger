@@ -20,7 +20,7 @@ https://github.com/JoinedSenses/SourceIRC (Modified)
 
 ## ConVars
 ```
-sm_regex_allow "1" Status of the plugin.\n(1 = on, 0 = off)  
+sm_regex_allow "1" Status of the plugin. (1 = on, 0 = off)  
 sm_regex_config_path "configs/regextriggers/" Location to store the regex filters at.  
 sm_regex_check_chat "1" Filter out and check chat messages.  
 sm_regex_check_commands "1" Filter out and check commands.  
