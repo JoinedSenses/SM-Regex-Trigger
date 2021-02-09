@@ -2,7 +2,7 @@
 #pragma newdecls required
 
 #define PLUGIN_DESCRIPTION "Regex triggers for names, chat, and commands."
-#define PLUGIN_VERSION "2.5.6"
+#define PLUGIN_VERSION "2.5.7"
 #define MAX_EXPRESSION_LENGTH 512
 #define MATCH_SIZE 64
 
@@ -336,7 +336,7 @@ public Action eventOnChangeName(Event event, const char[] name, bool dontBroadca
 #if defined DEBUG
 public Action cmdTestName(int client, int args) {
 	char arg[128];
-	GetCmdArgString(arg, sizeof(arg));
+	GetCmdArg(1, arg, sizeof(arg));
 
 	SetClientName(client, arg);
 	return Plugin_Handled;
@@ -708,7 +708,7 @@ void AnnounceNameChange(int client, char[] newName, bool connecting = false) {
 				case TFTeam_Blue: {
 					strcopy(color, sizeof(color), g_sBlue);
 				}
-			}	
+			}
 		}
 
 		PrintColoredChatAll("\x01* %s%s\x01 changed name to %s%s", color, g_sOldName[client], color, newName);
@@ -829,6 +829,8 @@ void CheckClientName(int client, char[] newName, int size, bool connecting = fal
 	}
 
 	if (g_bChanged[client]) {
+		TrimString(newName);
+
 		if (StrEqual(g_sOldName[client], newName)) {
 			g_bChanged[client] = false;
 		}
