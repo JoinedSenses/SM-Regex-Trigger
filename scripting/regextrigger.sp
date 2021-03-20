@@ -2,7 +2,7 @@
 #pragma newdecls required
 
 #define PLUGIN_DESCRIPTION "Regex triggers for names, chat, and commands."
-#define PLUGIN_VERSION "2.5.8"
+#define PLUGIN_VERSION "2.5.9"
 #define MAX_EXPRESSION_LENGTH 512
 #define MATCH_SIZE 64
 
@@ -176,9 +176,6 @@ public void OnPluginStart() {
 
 	g_rRegexCaptures = new Regex("\\\\\\d+");
 
-	// 5 second delay to ease OnPluginStart workload
-	CreateTimer(5.0, timerLoadExpressions);
-
 	g_EngineVersion = GetEngineVersion();
 
 	if (g_EngineVersion == Engine_CSGO) {
@@ -193,6 +190,12 @@ public void OnPluginStart() {
 				FormatEx(g_sUnfilteredName[i], sizeof(g_sUnfilteredName[]), "%N", i);
 			}
 		}
+
+		timerLoadExpressions(null);
+	}
+	else {
+		// 5 second delay to ease OnPluginStart workload
+		CreateTimer(5.0, timerLoadExpressions);
 	}
 }
 
@@ -333,11 +336,7 @@ public Action eventOnChangeName(Event event, const char[] name, bool dontBroadca
 		strcopy(g_sUnfilteredName[client], sizeof(g_sUnfilteredName[]), newName);
 	}
 
-	CheckClientName(client, newName, sizeof(newName));
-	// Dont think this is needed.
-	event.SetString("newname", newName);
-
-	return Plugin_Continue;
+	return CheckClientName(client, newName, sizeof(newName));
 }
 
 // =================== Commands
@@ -738,15 +737,15 @@ void ConnectNameCheck(int client) {
 	CheckClientName(client, clientName, sizeof(clientName), true);
 }
 
-void CheckClientName(int client, char[] newName, int size, bool connecting = false) {
+Action CheckClientName(int client, char[] newName, int size, bool connecting = false) {
 	if (client < 1 || client > MaxClients || IsFakeClient(client)) {
-		return;
+		return Plugin_Continue;
 	}
 
 	// If name has already been checked, try to announce
 	if (g_bChanged[client]) {
 		AnnounceNameChange(client, newName, connecting);
-		return;
+		return Plugin_Continue;
 	}
 
 	ArrayList nameSections = g_aSections[NAME];
@@ -804,8 +803,8 @@ void CheckClientName(int client, char[] newName, int size, bool connecting = fal
 			if (rules.GetValue("limit", limit)) {
 				bool result = LimitClient(client, NAME, sectionName, limit, rules);
 
-				if (!result) {
-					return;
+				if (!result) { // false if not connected
+					return Plugin_Continue;
 				}
 			}
 
@@ -836,6 +835,8 @@ void CheckClientName(int client, char[] newName, int size, bool connecting = fal
 		begin++;
 	}
 
+	Action ret = Plugin_Continue;
+
 	if (g_bChanged[client]) {
 		TrimString(newName);
 
@@ -848,25 +849,22 @@ void CheckClientName(int client, char[] newName, int size, bool connecting = fal
 			FormatEx(newName, MAX_NAME_LENGTH, "%s%s", g_sPrefix, g_sRandomNames[randomnum]);
 		}
 
-		if (relay && g_bDiscord) {
-			Discord_EscapeString(g_sUnfilteredName[client], sizeof(g_sUnfilteredName[]));
-			Discord_EscapeString(newName, MAX_NAME_LENGTH);
-			char output[192];
-			Format(output, sizeof(output), "**%s** `%s`  -->  `%s`", g_sServerName, g_sUnfilteredName[client], newName);
-			Discord_SendMessage(g_sNameChannel, output);
-		}
-
 		SetClientName(client, newName);
+
+		ret = Plugin_Stop;
 	}
-	else if (relay && g_bDiscord) {
+	
+	if (relay && g_bDiscord) {
 		Discord_EscapeString(g_sUnfilteredName[client], sizeof(g_sUnfilteredName[]));
 		Discord_EscapeString(newName, MAX_NAME_LENGTH);
 		char output[192];
-		Format(output, sizeof(output), "**%s** `%s`  -->  `%s`", g_sServerName, g_sUnfilteredName[client], newName);
+		FormatEx(output, sizeof(output), "**%s** `%s`  -->  `%s`", g_sServerName, g_sUnfilteredName[client], newName);
 		Discord_SendMessage(g_sNameChannel, output);
 	}
 
 	AnnounceNameChange(client, newName, connecting);
+
+	return ret;
 }
 
 Action CheckClientMessage(int client, const char[] command, const char[] text) {
