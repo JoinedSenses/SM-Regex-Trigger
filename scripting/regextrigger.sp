@@ -2,7 +2,7 @@
 #pragma newdecls required
 
 #define PLUGIN_DESCRIPTION "Regex triggers for names, chat, and commands."
-#define PLUGIN_VERSION "2.5.7"
+#define PLUGIN_VERSION "2.5.8"
 #define MAX_EXPRESSION_LENGTH 512
 #define MATCH_SIZE 64
 
@@ -103,6 +103,14 @@ enum struct Section {
 		delete this.Regexes;
 		delete this.Rules;
 	}
+}
+
+public Plugin myinfo = {
+	name = "RegexTrigger",
+	author = "JoinedSenses",
+	description = PLUGIN_DESCRIPTION,
+	version = PLUGIN_VERSION,
+	url = "https://github.com/JoinedSenses"
 }
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max) {
