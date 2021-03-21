@@ -2,7 +2,7 @@
 #pragma newdecls required
 
 #define PLUGIN_DESCRIPTION "Regex triggers for names, chat, and commands."
-#define PLUGIN_VERSION "2.5.9"
+#define PLUGIN_VERSION "2.5.10"
 #define MAX_EXPRESSION_LENGTH 512
 #define MATCH_SIZE 64
 
@@ -22,9 +22,9 @@
 #define REQUIRE_PLUGIN
 
 enum {
-	NAME = 0, 
-	CHAT, 
-	COMMAND, 
+	NAME = 0,
+	CHAT,
+	COMMAND,
 	TRIGGER_COUNT
 }
 
@@ -228,7 +228,7 @@ public void OnClientPostAdminCheck(int client) {
 	}
 
 	ClearData(client);
-	ConnectNameCheck(client);	
+	ConnectNameCheck(client);
 }
 
 public void OnClientDisconnect(int client) {
@@ -246,7 +246,7 @@ public Action OnClientSayCommand(int client, const char[] command, const char[] 
 		return Plugin_Handled;
 	}
 #endif
-	
+
 	if (!args[0] || !client) {
 		return Plugin_Continue;
 	}
@@ -258,10 +258,10 @@ public Action OnClientCommand(int client, int argc) {
 	if (!g_cvarStatus.BoolValue || !g_cvarCheckCommands.BoolValue || client == 0) {
 		return Plugin_Continue;
 	}
-	
+
 	char command[256];
 	GetCmdArgString(command, sizeof(command));
-	
+
 	if (!command[0] || StrContains(command, "say") == 0) {
 		return Plugin_Continue;
 	}
@@ -385,7 +385,7 @@ void LoadRegexConfig(const char[] config) {
 	if (!FileExists(config)) {
 		ThrowError("Error finding file: %s", config);
 	}
-	
+
 	KeyValues kv = new KeyValues("RegexFilters");
 	kv.ImportFromFile(config);
 
@@ -408,10 +408,9 @@ void LoadRegexConfig(const char[] config) {
 		}
 
 		char key[128];
+		char buffer[MAX_EXPRESSION_LENGTH];
 		do {
 			kv.GetSectionName(key, sizeof(key));
-
-			char buffer[128];
 
 			if (StrEqual(key, "namepattern")) {
 				kv.GetString(NULL_STRING, buffer, sizeof(buffer));
@@ -419,11 +418,11 @@ void LoadRegexConfig(const char[] config) {
 			}
 			else if (StrEqual(key, "chatpattern")) {
 				kv.GetString(NULL_STRING, buffer, sizeof(buffer));
-				RegisterExpression(buffer, section[CHAT]);				
+				RegisterExpression(buffer, section[CHAT]);
 			}
 			else if (StrEqual(key, "cmdpattern")) {
 				kv.GetString(NULL_STRING, buffer, sizeof(buffer));
-				RegisterExpression(buffer, section[COMMAND]);				
+				RegisterExpression(buffer, section[COMMAND]);
 			}
 			else if (StrEqual(key, "replace")) {
 				ArrayList replacements;
@@ -501,7 +500,7 @@ void RegisterExpression(const char[] key, Section section) {
 	char error[128];
 	RegexError errorcode;
 	Regex regex = new Regex(expression, flags, error, sizeof(error), errorcode);
-	
+
 	if (regex == null) {
 		LogError("Error compiling expression '%s' with flags '%i': [%i] %s", expression, flags, errorcode, error);
 		return;
@@ -513,12 +512,12 @@ void RegisterExpression(const char[] key, Section section) {
 int ParseExpression(const char[] key, char[] expression, int size) {
 	strcopy(expression, size, key);
 	TrimString(expression);
-	
+
 	int flags;
 	int a;
 	int b;
 	int c;
-	
+
 	if (expression[strlen(expression) - 1] == '\'') {
 		for (; expression[flags] != '\0'; flags++) {
 			if (expression[flags] == '\'') {
@@ -527,7 +526,7 @@ int ParseExpression(const char[] key, char[] expression, int size) {
 				c = flags;
 			}
 		}
-		
+
 		if (a < 2) {
 			LogError("Regex Filter line malformed: %s", key);
 			return -1;
@@ -536,21 +535,21 @@ int ParseExpression(const char[] key, char[] expression, int size) {
 		expression[b] = '\0';
 		expression[c] = '\0';
 		flags = FindRegexFlags(expression[b + 1]);
-		
+
 		TrimString(expression);
-		
+
 		if (a > 2 && expression[0] == '\'') {
 			strcopy(expression, strlen(expression) - 1, expression[1]);
 		}
 	}
-	
+
 	return flags;
 }
 
 int FindRegexFlags(const char[] flags) {
 	char sBuffer[7][16];
 	ExplodeString(flags, "|", sBuffer, 7, 16);
-	
+
 	int new_flags;
 	for (int i = 0; i < 7; i++) {
 		if (sBuffer[i][0] == '\0') {
@@ -578,7 +577,7 @@ int FindRegexFlags(const char[] flags) {
 			new_flags |= PCRE_NO_UTF8_CHECK;
 		}
 	}
-	
+
 	return new_flags;
 }
 
@@ -772,7 +771,7 @@ Action CheckClientName(int client, char[] newName, int size, bool connecting = f
 
 	while (begin != end) {
 		nameSections.GetArray(begin, nameSection, sizeof(Section));
-		
+
 		rules = nameSection.Rules;
 
 		if (rules.GetValue("immunity", immunityFlag) && CheckCommandAccess(client, "", immunityFlag, true)) {
@@ -853,7 +852,7 @@ Action CheckClientName(int client, char[] newName, int size, bool connecting = f
 
 		ret = Plugin_Stop;
 	}
-	
+
 	if (relay && g_bDiscord) {
 		Discord_EscapeString(g_sUnfilteredName[client], sizeof(g_sUnfilteredName[]));
 		Discord_EscapeString(newName, MAX_NAME_LENGTH);
@@ -888,7 +887,7 @@ Action CheckClientMessage(int client, const char[] command, const char[] text) {
 
 	Regex regex;
 	RegexError errorcode;
-	
+
 	char buffer[256];
 	int limit;
 	int relay;
@@ -984,7 +983,7 @@ Action CheckClientMessage(int client, const char[] command, const char[] text) {
 		if (relay && g_bDiscord) {
 			char originalmessage[256];
 			strcopy(originalmessage, sizeof(originalmessage), text);
-			
+
 			char clientName[MAX_NAME_LENGTH];
 			Format(clientName, sizeof(clientName), "%N", client);
 
@@ -1107,7 +1106,7 @@ Action CheckClientCommand(int client, char[] cmd) {
 					Discord_SendMessage(g_sChatChannel, output);
 				}
 
-				return Plugin_Handled;			
+				return Plugin_Handled;
 			}
 
 			if (rules.GetValue("replace", replaceList)) {
@@ -1136,7 +1135,7 @@ Action CheckClientCommand(int client, char[] cmd) {
 		if (relay && g_bDiscord) {
 			char originalCommand[256];
 			strcopy(originalCommand, sizeof(originalCommand), cmd);
-			
+
 			char clientName[MAX_NAME_LENGTH];
 			Format(clientName, sizeof(clientName), "%N", client);
 
