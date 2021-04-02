@@ -2,7 +2,7 @@
 #pragma newdecls required
 
 #define PLUGIN_DESCRIPTION "Regex triggers for names, chat, and commands."
-#define PLUGIN_VERSION "2.5.10"
+#define PLUGIN_VERSION "2.5.11"
 #define MAX_EXPRESSION_LENGTH 512
 #define MATCH_SIZE 64
 
@@ -575,6 +575,9 @@ int FindRegexFlags(const char[] flags) {
 		}
 		else if (StrEqual(sBuffer[i], "NO_UTF8_CHECK")) {
 			new_flags |= PCRE_NO_UTF8_CHECK;
+		}
+		else if (StrEqual(sBuffer[i], "UCP")) {
+			new_flags |= PCRE_UCP;
 		}
 	}
 
