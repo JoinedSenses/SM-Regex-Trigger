@@ -2,7 +2,7 @@
 #pragma newdecls required
 
 #define PLUGIN_DESCRIPTION "Regex triggers for names, chat, and commands."
-#define PLUGIN_VERSION "2.5.11"
+#define PLUGIN_VERSION "2.5.12"
 #define MAX_EXPRESSION_LENGTH 512
 #define MATCH_SIZE 64
 
@@ -857,10 +857,17 @@ Action CheckClientName(int client, char[] newName, int size, bool connecting = f
 	}
 
 	if (relay && g_bDiscord) {
-		Discord_EscapeString(g_sUnfilteredName[client], sizeof(g_sUnfilteredName[]));
-		Discord_EscapeString(newName, MAX_NAME_LENGTH);
+		char unfilteredName[MAX_NAME_LENGTH * 2 + 1];
+		strcopy(unfilteredName, sizeof(unfilteredName), g_sUnfilteredName[client]);
+		Discord_EscapeString(unfilteredName, sizeof(unfilteredName));
+
+		char _newName[MAX_NAME_LENGTH * 2 + 1];
+		strcopy(_newName, sizeof(_newName), newName);
+		Discord_EscapeString(_newName, sizeof(_newName));
+
 		char output[192];
-		FormatEx(output, sizeof(output), "**%s** `%s`  -->  `%s`", g_sServerName, g_sUnfilteredName[client], newName);
+		FormatEx(output, sizeof(output), "**%s** `%s`  -->  `%s`", g_sServerName, unfilteredName, _newName);
+
 		Discord_SendMessage(g_sNameChannel, output);
 	}
 
@@ -941,18 +948,20 @@ Action CheckClientMessage(int client, const char[] command, const char[] text) {
 
 			if (rules.GetValue("block", block) && block) {
 				if (relay && g_bDiscord) {
-					char clientName[MAX_NAME_LENGTH];
+					char clientName[MAX_NAME_LENGTH * 2 + 1];
 					GetClientName(client, clientName, sizeof(clientName));
-
 					Discord_EscapeString(clientName, sizeof(clientName));
-					Discord_EscapeString(message, sizeof(message));
+
+					char _message[sizeof(message) * 2 + 1];
+					strcopy(_message, sizeof(_message), message);
+					Discord_EscapeString(_message, sizeof(_message));
 
 					char output[256];
 					if (changed) {
-						Format(output, sizeof(output), "**%s** %s: `%s` --> `%s` **Blocked**", g_sServerName, clientName, text, message);
+						Format(output, sizeof(output), "**%s** %s: `%s` --> `%s` **Blocked**", g_sServerName, clientName, text, _message);
 					}
 					else {
-						Format(output, sizeof(output), "**%s** %s: `%s`", g_sServerName, clientName, message);
+						Format(output, sizeof(output), "**%s** %s: `%s`", g_sServerName, clientName, _message);
 					}
 
 					Discord_SendMessage(g_sChatChannel, output);
@@ -989,13 +998,16 @@ Action CheckClientMessage(int client, const char[] command, const char[] text) {
 
 			char clientName[MAX_NAME_LENGTH];
 			Format(clientName, sizeof(clientName), "%N", client);
-
 			Discord_EscapeString(clientName, sizeof(clientName));
+
 			Discord_EscapeString(originalmessage, sizeof(originalmessage));
+
+			char _message[sizeof(message) * 2 + 1];
+			strcopy(_message, sizeof(_message), message);
 			Discord_EscapeString(message, sizeof(message));
 
 			char output[256];
-			Format(output, sizeof(output), "**%s** %s: `%s`  -->  `%s`", g_sServerName, clientName, originalmessage, message);
+			Format(output, sizeof(output), "**%s** %s: `%s`  -->  `%s`", g_sServerName, clientName, originalmessage, _message);
 
 			Discord_SendMessage(g_sChatChannel, output);
 		}
@@ -1144,10 +1156,13 @@ Action CheckClientCommand(int client, char[] cmd) {
 
 			Discord_EscapeString(clientName, sizeof(clientName));
 			Discord_EscapeString(originalCommand, sizeof(originalCommand));
-			Discord_EscapeString(command, sizeof(command));
+
+			char _command[sizeof(command) * 2 + 1];
+			strcopy(_command, sizeof(_command), command);
+			Discord_EscapeString(_command, sizeof(_command));
 
 			char output[256];
-			Format(output, sizeof(output), "**%s** Command| %s: `%s`  -->  `%s`", g_sServerName, clientName, originalCommand, command);
+			Format(output, sizeof(output), "**%s** Command| %s: `%s`  -->  `%s`", g_sServerName, clientName, originalCommand, _command);
 
 			Discord_SendMessage(g_sChatChannel, output);
 		}
