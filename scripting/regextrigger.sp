@@ -8,7 +8,7 @@
 
 // Define created to use settings specifically for my own servers.
 // allows easier release of this plugin.
-// #define CUSTOM
+#define CUSTOM
 // #define DEBUG
 
 #include <sourcemod>
@@ -1004,7 +1004,7 @@ Action CheckClientMessage(int client, const char[] command, const char[] text) {
 
 			char _message[sizeof(message) * 2 + 1];
 			strcopy(_message, sizeof(_message), message);
-			Discord_EscapeString(message, sizeof(message));
+			Discord_EscapeString(_message, sizeof(_message));
 
 			char output[256];
 			Format(output, sizeof(output), "**%s** %s: `%s`  -->  `%s`", g_sServerName, clientName, originalmessage, _message);
